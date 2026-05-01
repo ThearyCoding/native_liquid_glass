@@ -21,8 +21,8 @@ import 'utils/text_style_utils.dart';
 /// lazy-forwarding pipeline drops or cancels the release event.
 final Set<Factory<OneSequenceGestureRecognizer>> _buttonGestureRecognizers =
     <Factory<OneSequenceGestureRecognizer>>{
-  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-};
+      Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+    };
 
 /// Image placement options for buttons with both image and label.
 enum LiquidGlassImagePlacement {
@@ -91,6 +91,12 @@ class LiquidGlassButton extends StatefulWidget {
   ///
   /// If null, the button is disabled.
   final VoidCallback? onPressed;
+
+  /// Whether the button is enabled.
+  ///
+  /// Defaults to true. When false, the button is visually disabled and ignores
+  /// presses even if [onPressed] is non-null.
+  final bool enabled;
 
   /// Optional icon displayed in the button.
   ///
@@ -220,6 +226,16 @@ class LiquidGlassButton extends StatefulWidget {
   /// Defaults to true.
   final bool interaction;
 
+  /// Whether a Flutter popup/modal should keep this button's Liquid Glass
+  /// appearance instead of temporarily switching to a standard
+  /// `borderedProminent` button style.
+  ///
+  /// When false (the default), popup suppression keeps the button visible but
+  /// disabled and temporarily renders it as a standard prominent button. When
+  /// true, popup suppression keeps the Liquid Glass style while still
+  /// disabling interaction.
+  final bool useLiquidGlassWhenPopupSuppressed;
+
   /// Explicit label text color.
   ///
   /// When provided, overrides any color derived from [foregroundColor] or the
@@ -249,11 +265,19 @@ class LiquidGlassButton extends StatefulWidget {
   /// Whether this button is in icon-only mode.
   final bool _iconOnly;
 
+   /// Forces the button to remain interactive and keep its Liquid Glass
+  /// appearance even when a modal/popup is open.
+  /// 
+  /// When true, the button ignores suppression from modal routes and
+  /// popups, maintaining full interactivity.
+  final bool forceShow;
+
   /// Creates a native Liquid Glass text button with an optional icon.
   const LiquidGlassButton({
     super.key,
     required String this.label,
     required this.onPressed,
+    this.enabled = true,
     this.icon,
     this.width,
     this.height,
@@ -276,15 +300,20 @@ class LiquidGlassButton extends StatefulWidget {
     this.borderRadius,
     this.padding,
     this.interaction = true,
+    this.useLiquidGlassWhenPopupSuppressed = false,
     this.labelColor,
     this.shrinkWrap = false,
     this.maxLines = 1,
     this.border,
+     this.forceShow = false,
   }) : _iconOnly = false,
        size = null,
        tooltip = null,
        assert(width == null || width > 0, 'width must be > 0 when provided.'),
-       assert(height == null || height > 0, 'height must be > 0 when provided.'),
+       assert(
+         height == null || height > 0,
+         'height must be > 0 when provided.',
+       ),
        assert(iconSize > 0, 'iconSize must be > 0.'),
        assert(imagePadding >= 0, 'imagePadding must be >= 0.');
 
@@ -297,8 +326,9 @@ class LiquidGlassButton extends StatefulWidget {
     super.key,
     required this.onPressed,
     required NativeLiquidGlassIcon this.icon,
+    this.enabled = true,
     this.size,
-    this.iconSize = 20,
+    this.iconSize = 18,
     this.tooltip,
     this.iconColor,
     this.tint,
@@ -309,12 +339,14 @@ class LiquidGlassButton extends StatefulWidget {
     this.borderRadius,
     this.padding,
     this.interaction = true,
+    this.useLiquidGlassWhenPopupSuppressed = false,
     this.badgeValue,
     this.showBadge = false,
     this.badgeColor,
     this.badgeTextColor,
     this.badgeSize,
     this.border,
+    this.forceShow = false,
   }) : _iconOnly = true,
        label = null,
        foregroundColor = null,
@@ -333,9 +365,13 @@ class LiquidGlassButton extends StatefulWidget {
   State<LiquidGlassButton> createState() => _LiquidGlassButtonState();
 }
 
-class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassRouteSuppression {
+class _LiquidGlassButtonState extends State<LiquidGlassButton>
+    with LiquidGlassRouteSuppression {
   MethodChannel? _nativeChannel;
-  @override MethodChannel? get suppressionChannel => _nativeChannel;
+    @override
+  bool get forceShow => widget.forceShow; 
+  @override
+  MethodChannel? get suppressionChannel => _nativeChannel;
   NativeLiquidGlassIconPayload? _iconPayload;
   int _nativePayloadRequestId = 0;
   bool _nativeIconPayloadResolved = false;
@@ -343,10 +379,13 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
   double? _nativeWidth;
   double? _nativeHeight;
   int? _lastConfigHash;
+  bool? _lastEnabled;
   Size? _cachedEstimatedSize;
   int? _estimateCacheKey;
   Map<String, Object?>? _cachedCreationParams;
   int? _creationParamsCacheKey;
+
+  bool get _isEnabled => widget.enabled && widget.onPressed != null;
 
   @override
   void initState() {
@@ -356,8 +395,18 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
   }
 
   @override
+  @override
   void didUpdateWidget(covariant LiquidGlassButton oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
+    // If forceShow changed, update native
+    if (oldWidget.forceShow != widget.forceShow) {
+      _syncForceShowToNative();
+      // Also re-sync suppression state since forceShow changed
+      if (mounted) {
+        syncGlassRouteVisibility();
+      }
+    }
 
     final newSignature = widget.icon?.nativeSignature ?? 0;
     if (newSignature != _iconSignature) {
@@ -366,7 +415,19 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
     }
     _syncPropsToNativeIfNeeded();
   }
-
+  // Add this method to sync forceShow to native
+  Future<void> _syncForceShowToNative() async {
+    final ch = _nativeChannel;
+    if (ch == null) return;
+    
+    try {
+      await ch.invokeMethod<void>('setForceShow', {
+        'forceShow': widget.forceShow,
+      });
+    } catch (e) {
+      debugPrint('LiquidGlass: Error syncing forceShow: $e');
+    }
+  }
   @override
   void reassemble() {
     super.reassemble();
@@ -378,6 +439,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
         _nativeWidth = null;
         _nativeHeight = null;
         _lastConfigHash = null;
+        _lastEnabled = null;
         _cachedEstimatedSize = null;
         _estimateCacheKey = null;
         _cachedCreationParams = null;
@@ -393,21 +455,23 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
     }
   }
 
-  void _onPlatformViewCreated(int viewId) {
+   void _onPlatformViewCreated(int viewId) {
     _nativeChannel?.setMethodCallHandler(null);
-    final channel = MethodChannel('liquid-glass-button-view/$viewId');
+    final channelName = widget._iconOnly
+        ? 'liquid-glass-icon-button-view/$viewId'
+        : 'liquid-glass-button-view/$viewId';
+    final channel = MethodChannel(channelName);
     channel.setMethodCallHandler(_handleNativeMethodCall);
     _nativeChannel = channel;
-    // The native view was just created with creationParams matching
-    // `_creationParamsCacheKey`. Seed `_lastConfigHash` with it so
-    // `_syncPropsToNativeIfNeeded` becomes a no-op unless props have
-    // changed since. If props did change (e.g. a late payload resolved
-    // between build and this callback), the hash will differ and we
-    // still push the delta.
-    _lastConfigHash = _creationParamsCacheKey;
+    
+    // Sync forceShow immediately when view is created
+    _syncForceShowToNative();
+    
+    _lastConfigHash = _computeSyncHash(
+      resolvedSize: widget._iconOnly ? null : _resolveNativeSize(context),
+    );
+    _lastEnabled = _isEnabled;
     _syncPropsToNativeIfNeeded();
-    // Refine to the native intrinsic size for text buttons (always) and for
-    // icon-only buttons that didn't pin an explicit size.
     if (!widget._iconOnly || widget.size == null) {
       Future.delayed(const Duration(milliseconds: 10), _requestIntrinsicSize);
     }
@@ -425,7 +489,6 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
       widget.height,
       widget.size,
       widget.iconSize,
-      widget.onPressed != null,
       widget.foregroundColor?.toARGB32(),
       widget.iconColor?.toARGB32(),
       widget.tint?.toARGB32(),
@@ -444,6 +507,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
       widget.borderRadius,
       widget.padding,
       widget.interaction,
+      widget.useLiquidGlassWhenPopupSuppressed,
       widget.labelColor?.toARGB32(),
       widget.maxLines,
       widget.border?.signature,
@@ -459,7 +523,10 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
   }
 
   Map<String, Object?> _creationParamsCached({Size? resolvedSize}) {
-    final key = _computeSyncHash(resolvedSize: resolvedSize);
+    final key = Object.hash(
+      _computeSyncHash(resolvedSize: resolvedSize),
+      _isEnabled,
+    );
     final cached = _cachedCreationParams;
     if (_creationParamsCacheKey == key && cached != null) {
       return cached;
@@ -476,6 +543,11 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
 
     final size = _resolveNativeSize(context);
     final hash = _computeSyncHash(resolvedSize: size);
+    final enabled = _isEnabled;
+    if (_lastEnabled != enabled) {
+      await ch.invokeMethod<void>('setEnabled', {'enabled': enabled});
+      _lastEnabled = enabled;
+    }
     if (_lastConfigHash != hash) {
       // Native's `updateConfig` returns the post-layout intrinsic size in
       // its result, so consume it here instead of firing a separate
@@ -486,6 +558,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
         _buildNativeCreationParams(resolvedSize: size),
       );
       _lastConfigHash = hash;
+      _lastEnabled = enabled;
       if (!widget._iconOnly || widget.size == null) {
         _applyIntrinsicSizeResult(result);
       }
@@ -555,7 +628,9 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
     final ch = _nativeChannel;
     if (ch == null || !mounted) return;
     try {
-      final size = await ch.invokeMethod<Map<Object?, Object?>>('getIntrinsicSize');
+      final size = await ch.invokeMethod<Map<Object?, Object?>>(
+        'getIntrinsicSize',
+      );
       final w = (size?['width'] as num?)?.toDouble();
       final h = (size?['height'] as num?)?.toDouble();
       if (mounted && (w != null || h != null)) {
@@ -610,10 +685,18 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
     const horizontalInsets = 32.0;
     const verticalInsets = 20.0;
 
-    final iconContribution = hasIcon ? widget.iconSize + widget.imagePadding : 0.0;
+    final iconContribution = hasIcon
+        ? widget.iconSize + widget.imagePadding
+        : 0.0;
 
-    final estimatedWidth = math.max(44.0, (horizontalInsets + textPainter.width + iconContribution).ceilToDouble());
-    final estimatedHeight = math.max(32.0, (verticalInsets + textPainter.height).ceilToDouble());
+    final estimatedWidth = math.max(
+      44.0,
+      (horizontalInsets + textPainter.width + iconContribution).ceilToDouble(),
+    );
+    final estimatedHeight = math.max(
+      32.0,
+      (verticalInsets + textPainter.height).ceilToDouble(),
+    );
 
     final size = Size(estimatedWidth, estimatedHeight);
     _estimateCacheKey = cacheKey;
@@ -626,7 +709,10 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
       return Size(widget.width!, widget.height!);
     }
     final estimatedSize = _estimateWrapContentSize(context);
-    return Size(widget.width ?? estimatedSize.width, widget.height ?? estimatedSize.height);
+    return Size(
+      widget.width ?? estimatedSize.width,
+      widget.height ?? estimatedSize.height,
+    );
   }
 
   // — Icon button size helper —
@@ -654,7 +740,8 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
 
   Map<String, Object?> _buildNativeCreationParams({Size? resolvedSize}) {
     final isIconOnly = widget._iconOnly;
-    final iconMap = widget.icon?.toNativeMap(_iconPayload) ?? <String, Object?>{};
+    final iconMap =
+        widget.icon?.toNativeMap(_iconPayload) ?? <String, Object?>{};
     final p = widget.padding;
     final iconOnlySide = isIconOnly ? _resolveIconOnlySize() : null;
     return <String, Object?>{
@@ -662,10 +749,11 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
       ...iconMap,
       'width': isIconOnly ? iconOnlySide : resolvedSize!.width,
       'height': isIconOnly ? iconOnlySide : resolvedSize!.height,
-      'enabled': widget.onPressed != null,
+      'enabled': _isEnabled,
       'iconOnly': isIconOnly,
       'iconSize': widget.iconSize,
-      'foregroundColor': (isIconOnly ? widget.iconColor : widget.foregroundColor)?.toARGB32(),
+      'foregroundColor':
+          (isIconOnly ? widget.iconColor : widget.foregroundColor)?.toARGB32(),
       'iconColor': widget.iconColor?.toARGB32(),
       'tint': widget.tint?.toARGB32(),
       'imagePadding': widget.imagePadding,
@@ -674,14 +762,24 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
       'glassEffectId': widget.glassEffectId,
       'buttonStyle': widget.style.name,
       if (widget.borderRadius != null) 'borderRadius': widget.borderRadius,
-      if (p != null) ...{'paddingTop': p.top, 'paddingBottom': p.bottom, 'paddingLeft': p.left, 'paddingRight': p.right},
+      if (p != null) ...{
+        'paddingTop': p.top,
+        'paddingBottom': p.bottom,
+        'paddingLeft': p.left,
+        'paddingRight': p.right,
+      },
       'interaction': widget.interaction,
-      if (widget.labelColor != null) 'labelColor': widget.labelColor!.toARGB32(),
+      'useLiquidGlassWhenPopupSuppressed':
+          widget.useLiquidGlassWhenPopupSuppressed,
+      if (widget.labelColor != null)
+        'labelColor': widget.labelColor!.toARGB32(),
       if (!isIconOnly) 'imagePlacement': widget.imagePlacement.name,
       'badgeValue': widget.badgeValue,
       'showBadge': widget.showBadge || widget.badgeValue != null,
-      if (widget.badgeColor != null) 'badgeColor': widget.badgeColor!.toARGB32(),
-      if (widget.badgeTextColor != null) 'badgeTextColor': widget.badgeTextColor!.toARGB32(),
+      if (widget.badgeColor != null)
+        'badgeColor': widget.badgeColor!.toARGB32(),
+      if (widget.badgeTextColor != null)
+        'badgeTextColor': widget.badgeTextColor!.toARGB32(),
       if (widget.badgeSize != null) 'badgeSize': widget.badgeSize,
       if (!isIconOnly) 'labelStyle': textStylePayload(widget.labelTextStyle),
       if (!isIconOnly && widget.maxLines != null) 'maxLines': widget.maxLines,
@@ -691,7 +789,8 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
 
   @override
   Widget build(BuildContext context) {
-    final nativePayloadReady = !_needsNativeIconPayload || _nativeIconPayloadResolved;
+    final nativePayloadReady =
+        !_needsNativeIconPayload || _nativeIconPayloadResolved;
     final isIconOnly = widget._iconOnly;
 
     if (NativeLiquidGlassUtils.supportsLiquidGlass) {
@@ -703,7 +802,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
                 width: iconSide,
                 height: iconSide,
                 child: UiKitView(
-                  viewType: 'liquid-glass-button-view',
+                  viewType: 'liquid-glass-icon-button-view',
                   creationParams: _creationParamsCached(),
                   creationParamsCodec: const StandardMessageCodec(),
                   onPlatformViewCreated: _onPlatformViewCreated,
@@ -723,13 +822,15 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
             child: iconContent,
           );
         }
-        return iconContent;
+        return wrapWithGlassRouteSuppression(iconContent);
       }
 
       if (!nativePayloadReady) {
         final fallbackSize = _resolveNativeSize(context);
-        Widget placeholder =
-            SizedBox(width: fallbackSize.width, height: fallbackSize.height);
+        Widget placeholder = SizedBox(
+          width: fallbackSize.width,
+          height: fallbackSize.height,
+        );
         if (widget.width == null) {
           placeholder = UnconstrainedBox(
             constrainedAxis: Axis.vertical,
@@ -741,7 +842,10 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
       }
 
       final estimated = _resolveNativeSize(context);
-      final nativeSize = Size(widget.width ?? _nativeWidth ?? estimated.width, widget.height ?? _nativeHeight ?? estimated.height);
+      final nativeSize = Size(
+        widget.width ?? _nativeWidth ?? estimated.width,
+        widget.height ?? _nativeHeight ?? estimated.height,
+      );
 
       Widget textContent = SizedBox(
         width: nativeSize.width,
@@ -762,7 +866,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
           child: textContent,
         );
       }
-      return textContent;
+      return wrapWithGlassRouteSuppression(textContent);
     }
 
     return const SizedBox();
@@ -774,6 +878,9 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> with LiquidGlassR
 class LiquidGlassIconButton extends StatelessWidget {
   /// Called when the icon button is pressed.
   final VoidCallback? onPressed;
+
+  /// Whether the button is enabled.
+  final bool enabled;
 
   /// Icon displayed in the button.
   final NativeLiquidGlassIcon icon;
@@ -796,6 +903,10 @@ class LiquidGlassIconButton extends StatelessWidget {
   /// Whether native iOS glass effect should be interactive.
   final bool interactive;
 
+  /// Whether a Flutter popup/modal should keep the Liquid Glass style instead
+  /// of temporarily switching this button to a standard prominent button.
+  final bool useLiquidGlassWhenPopupSuppressed;
+
   /// Optional ID for glass effect union.
   final String? glassEffectUnionId;
 
@@ -805,6 +916,7 @@ class LiquidGlassIconButton extends StatelessWidget {
   const LiquidGlassIconButton({
     super.key,
     required this.onPressed,
+    this.enabled = true,
     required this.icon,
     this.size = 50,
     this.iconSize = 20,
@@ -812,6 +924,7 @@ class LiquidGlassIconButton extends StatelessWidget {
     this.iconColor,
     this.tint,
     this.interactive = true,
+    this.useLiquidGlassWhenPopupSuppressed = false,
     this.glassEffectUnionId,
     this.glassEffectId,
   }) : assert(size > 0, 'size must be > 0.'),
@@ -821,6 +934,7 @@ class LiquidGlassIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return LiquidGlassButton.icon(
       onPressed: onPressed,
+      enabled: enabled,
       icon: icon,
       size: size,
       iconSize: iconSize,
@@ -828,6 +942,8 @@ class LiquidGlassIconButton extends StatelessWidget {
       iconColor: iconColor,
       tint: tint,
       interactive: interactive,
+      useLiquidGlassWhenPopupSuppressed:
+          useLiquidGlassWhenPopupSuppressed,
       glassEffectUnionId: glassEffectUnionId,
       glassEffectId: glassEffectId,
     );

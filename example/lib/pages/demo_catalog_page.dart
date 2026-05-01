@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:native_liquid_glass/native_liquid_glass.dart';
+import 'package:native_liquid_glass_example/pages/liquid_glass_text_field_preview_page.dart';
 
 import '../widgets/theme_mode_action_button.dart';
 import 'liquid_glass_activity_indicator_preview_page.dart';
@@ -33,7 +35,24 @@ class DemoCatalogPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Native Liquid Glass Widgets'),
-        actions: [ThemeModeActionButton(onThemeChanged: onThemeChanged)],
+        actions: [ThemeModeActionButton(onThemeChanged: onThemeChanged), LiquidGlassButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Hello'),
+                  content: const Text('This is a dialog'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: NativeLiquidGlassIcon.sfSymbol('info'),
+          ),],
       ),
       body: ListView(
         children: [
@@ -46,6 +65,21 @@ class DemoCatalogPage extends StatelessWidget {
               Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LiquidGlassButtonPreviewPage(onThemeChanged: onThemeChanged)));
             },
           ),
+ListTile(
+  leading: const Icon(Icons.text_fields),
+  title: const Text('LiquidGlassTextField preview'),
+  subtitle: const Text('Native glass-style text input with validation'),
+  trailing: const Icon(Icons.chevron_right),
+  onTap: () {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LiquidGlassTextFieldPreviewPage(
+          // onThemeChanged: onThemeChanged,
+        ),
+      ),
+    );
+  },
+),
           ListTile(
             leading: const Icon(Icons.view_compact_alt_outlined),
             title: const Text('LiquidGlassTabBar preview'),

@@ -6,8 +6,13 @@ import UIKit
 @available(iOS 16.0, *)
 final class LiquidGlassButtonViewModel: ObservableObject {
   @Published var config: LiquidGlassButtonConfig
+  @Published var isRouteSuppressed: Bool = false
+  @Published var isPopupRouteSuppressed: Bool = false
+  @Published var forceShow: Bool = false
   var onPressed: (() -> Void)?
-
+  var shouldSuppress: Bool {
+    !forceShow && (isRouteSuppressed || isPopupRouteSuppressed)
+  }
   init(config: LiquidGlassButtonConfig) {
     self.config = config
   }
@@ -42,6 +47,17 @@ struct LiquidGlassButtonBadge: View {
   }
 }
 
+// MARK: - Custom Button Style for Popup Suppression
+
+@available(iOS 16.0, *)
+struct FixedSizeButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+      .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+  }
+}
+
 // MARK: - SwiftUI Root View
 
 /// SwiftUI view for LiquidGlassButton. Uses glass effect modifiers on iOS 26+
@@ -52,6 +68,24 @@ struct LiquidGlassButtonRootView: View {
   @Namespace private var namespace
 
   private var config: LiquidGlassButtonConfig { viewModel.config }
+  
+  private var isEffectivelyEnabled: Bool {
+    // If forceShow is true, ignore suppression for enabled state
+    if viewModel.forceShow {
+      return config.enabled
+    }
+    return config.enabled && !viewModel.isRouteSuppressed
+  }
+  
+  private var effectiveButtonStyle: String {
+    // If forceShow is true, keep the original style
+    if viewModel.forceShow {
+      return config.buttonStyle
+    }
+    return viewModel.isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
+      ? "borderedProminent"
+      : config.buttonStyle
+  }
 
   var body: some View {
     ZStack(alignment: .topTrailing) {
@@ -84,7 +118,7 @@ struct LiquidGlassButtonRootView: View {
         Button(action: handlePress) {
           buttonLabel
             .padding(resolvedPadding())
-            .frame(width: config.width, height: resolvedFrameHeight())
+            .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
             .contentShape(resolvedShape())
             .glassEffect(resolvedGlass(), in: resolvedShape())
             .overlay { borderOverlay() }
@@ -94,7 +128,8 @@ struct LiquidGlassButtonRootView: View {
               namespace: namespace
             )
         }
-        .disabled(!config.enabled)
+        .clipShape(resolvedShape())
+        .disabled(!isEffectivelyEnabled)
         .buttonStyle(LiquidGlassNoHighlightButtonStyle())
         .allowsHitTesting(config.interaction)
       }
@@ -114,46 +149,97 @@ struct LiquidGlassButtonRootView: View {
     }
   }
 
-  // MARK: Standard SwiftUI button styles (iOS 16–25 and non-glass on iOS 26+)
-
   @ViewBuilder
-  private var standardButtonView: some View {
+private var standardButtonView: some View {
     let tint = resolvedTintColor()
-    // When the caller provides explicit contentInsets, pad the label so those insets
-    // are reflected. Standard button styles add their own padding on top, so this path
-    // is most accurate when the caller uses the glass style for full control.
-    let styledLabel = config.contentInsets != nil
-      ? AnyView(buttonLabel.padding(resolvedPadding()))
-      : AnyView(buttonLabel)
-    Group {
-      if config.buttonStyle == "plain" {
-        Button(action: handlePress) { styledLabel }
-          .buttonStyle(.plain)
-      } else if config.buttonStyle == "gray" {
-        Button(action: handlePress) { styledLabel }
-          .buttonStyle(.bordered)
-          .tint(Color(.systemGray))
-      } else if config.buttonStyle == "filled" || config.buttonStyle == "borderedProminent" {
-        Button(action: handlePress) { styledLabel }
-          .buttonStyle(.borderedProminent)
-          .tint(tint)
-      } else if isGlassStyle {
-        // Glass fallback for iOS < 26: semi-transparent borderedProminent
-        Button(action: handlePress) { styledLabel }
-          .buttonStyle(.borderedProminent)
-          .tint(tint?.opacity(0.22) ?? Color.accentColor.opacity(0.22))
-      } else {
-        // "bordered", "tinted", and others
-        Button(action: handlePress) { styledLabel }
-          .buttonStyle(.bordered)
-          .tint(tint)
-      }
+    let currentStyle = effectiveButtonStyle
+    let isDisabled = !isEffectivelyEnabled
+    
+    // Create content with exact sizing to preserve shape
+    let content = buttonLabel
+        .padding(resolvedPaddingForCurrentStyle(currentStyle))
+        .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
+        .background(
+            Group {
+                if currentStyle == "borderedProminent" || currentStyle == "filled" {
+                    resolvedShape()
+                        .fill(backgroundColorForCurrentStyle(tint: tint, isDisabled: isDisabled))
+                } else if currentStyle == "gray" {
+                    resolvedShape()
+                        .fill(Color(.systemGray).opacity(isDisabled ? 0.1 : 0.2))
+                } else if currentStyle == "bordered" {
+                    resolvedShape()
+                        .stroke(
+                            isDisabled ? Color.gray.opacity(0.3) : (tint ?? Color.accentColor), 
+                            lineWidth: 1
+                        )
+                        .background(resolvedShape().fill(Color.clear))
+                } else {
+                    resolvedShape()
+                        .fill(Color.clear)
+                }
+            }
+        )
+        .foregroundColor(foregroundColorForCurrentStyle(tint: tint, isDisabled: isDisabled))
+        .opacity(isDisabled ? 0.5 : 1.0)
+    
+    Button(action: handlePress) {
+        content
     }
-    .disabled(!config.enabled)
+    .buttonStyle(FixedSizeButtonStyle())
+    .disabled(isDisabled)
     .allowsHitTesting(config.interaction)
-    .frame(width: config.width, height: resolvedFrameHeight())
-    .clipShape(resolvedShape())
-  }
+}
+  private func backgroundColorForCurrentStyle(tint: Color?, isDisabled: Bool) -> Color {
+    let baseColor: Color
+    if let tint = tint {
+        baseColor = tint
+    } else if config.tint != nil {
+        baseColor = Color(uiColor: config.tint!)
+    } else {
+        // Default to a neutral color instead of system blue
+        baseColor = Color.gray
+    }
+    
+    if isDisabled {
+        return baseColor.opacity(0.3)
+    }
+    return baseColor
+}
+
+private func foregroundColorForCurrentStyle(tint: Color?, isDisabled: Bool) -> Color {
+    let currentStyle = effectiveButtonStyle
+    
+    if currentStyle == "borderedProminent" || currentStyle == "filled" {
+        // For filled styles, use white for text/icon
+        if isDisabled {
+            return Color.white.opacity(0.6)
+        }
+        return .white
+    } else {
+        // For bordered/plain styles, use the tint color
+        let color = effectiveTextColor ?? tint ?? Color.gray
+        if isDisabled {
+            return color.opacity(0.4)
+        }
+        return color
+    }
+}
+
+private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
+    if let insets = config.contentInsets {
+        return EdgeInsets(
+            top: insets.top,
+            leading: insets.leading,
+            bottom: insets.bottom,
+            trailing: insets.trailing
+        )
+    }
+    if config.iconOnly {
+        return EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
+    }
+    return EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16)
+}
 
   // MARK: Label content
 
@@ -230,7 +316,7 @@ struct LiquidGlassButtonRootView: View {
 
   private var effectiveTextColor: Color? {
     let isBackgroundTintStyle = ["filled", "borderedProminent", "prominentGlass"].contains(
-      config.buttonStyle)
+      effectiveButtonStyle)
     if isBackgroundTintStyle {
       if let c = config.labelColor { return Color(uiColor: c) }
       if let c = config.foregroundColor { return Color(uiColor: c) }
@@ -277,14 +363,28 @@ struct LiquidGlassButtonRootView: View {
   // MARK: Shape, sizing, padding
 
   private func resolvedShape() -> AnyShape {
+    // CRITICAL FIX: Always preserve circular shape for icon-only buttons
+    if config.iconOnly {
+      return AnyShape(Circle())
+    }
     if let r = config.borderRadius {
       return AnyShape(RoundedRectangle(cornerRadius: r))
     }
     return AnyShape(Capsule())
   }
 
+  private func resolvedFrameWidth() -> CGFloat? {
+    if config.iconOnly {
+      return config.height > 0 ? config.height : config.width
+    }
+    return config.width
+  }
+
   private func resolvedFrameHeight() -> CGFloat? {
-    config.height > 0 ? config.height : nil
+    if config.iconOnly {
+      return config.height > 0 ? config.height : nil
+    }
+    return config.height > 0 ? config.height : nil
   }
 
   private func resolvedPadding() -> EdgeInsets {
@@ -307,7 +407,7 @@ struct LiquidGlassButtonRootView: View {
   @available(iOS 26.0, *)
   private func resolvedGlass() -> Glass {
     let isProminent =
-      config.buttonStyle == "prominentGlass" || config.buttonStyle == "automatic"
+      effectiveButtonStyle == "prominentGlass" || effectiveButtonStyle == "automatic"
 
     var glass = Glass.regular
     if config.interactive {
@@ -324,8 +424,15 @@ struct LiquidGlassButtonRootView: View {
   // MARK: Helpers
 
   private var isGlassStyle: Bool {
-    config.buttonStyle == "glass" || config.buttonStyle == "prominentGlass"
-      || config.buttonStyle == "automatic"
+    // If forceShow is true, always use the configured style
+    if viewModel.forceShow {
+      return config.buttonStyle == "glass" || 
+             config.buttonStyle == "prominentGlass" ||
+             config.buttonStyle == "automatic"
+    }
+    return effectiveButtonStyle == "glass" || 
+           effectiveButtonStyle == "prominentGlass" ||
+           effectiveButtonStyle == "automatic"
   }
 
   private var accessibilityLabel: String {
@@ -333,7 +440,7 @@ struct LiquidGlassButtonRootView: View {
   }
 
   private func handlePress() {
-    guard config.enabled else { return }
+    guard config.enabled && !viewModel.isRouteSuppressed else { return }
     viewModel.onPressed?()
   }
 }

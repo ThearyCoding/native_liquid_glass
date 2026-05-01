@@ -6,13 +6,18 @@ import '../widgets/theme_mode_action_button.dart';
 class LiquidGlassContainerPreviewPage extends StatefulWidget {
   final ValueChanged<bool> onThemeChanged;
 
-  const LiquidGlassContainerPreviewPage({super.key, required this.onThemeChanged});
+  const LiquidGlassContainerPreviewPage({
+    super.key,
+    required this.onThemeChanged,
+  });
 
   @override
-  State<LiquidGlassContainerPreviewPage> createState() => _LiquidGlassContainerPreviewPageState();
+  State<LiquidGlassContainerPreviewPage> createState() =>
+      _LiquidGlassContainerPreviewPageState();
 }
 
-class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPreviewPage> {
+class _LiquidGlassContainerPreviewPageState
+    extends State<LiquidGlassContainerPreviewPage> {
   LiquidGlassEffect _effect = LiquidGlassEffect.regular;
   LiquidGlassEffectShape _shape = LiquidGlassEffectShape.rect;
   double _cornerRadius = 16;
@@ -36,8 +41,32 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
 
     return Scaffold(
       appBar: AppBar(
+        leading: LiquidGlassButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: NativeLiquidGlassIcon.sfSymbol('chevron.left'),
+        ),
         title: const Text('LiquidGlassContainer preview'),
-        actions: [ThemeModeActionButton(onThemeChanged: widget.onThemeChanged)],
+        actions: [
+          ThemeModeActionButton(onThemeChanged: widget.onThemeChanged),
+          LiquidGlassButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Hello'),
+                  content: const Text('This is a dialog'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: NativeLiquidGlassIcon.sfSymbol('info'),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -51,11 +80,17 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
                     config: LiquidGlassConfig(
                       effect: _effect,
                       shape: _shape,
-                      cornerRadius: _shape == LiquidGlassEffectShape.rect ? _cornerRadius : null,
+                      cornerRadius: _shape == LiquidGlassEffectShape.rect
+                          ? _cornerRadius
+                          : null,
                       tint: _useCustomTint ? colorScheme.primary : null,
                       interactive: _interactive,
-                      customPath: _shape == LiquidGlassEffectShape.custom ? _currentCustomPath : null,
-                      customPathSize: _shape == LiquidGlassEffectShape.custom ? _currentCustomPathSize : null,
+                      customPath: _shape == LiquidGlassEffectShape.custom
+                          ? _currentCustomPath
+                          : null,
+                      customPathSize: _shape == LiquidGlassEffectShape.custom
+                          ? _currentCustomPathSize
+                          : null,
                     ),
                     animateChanges: _animateChanges,
                     width: _width,
@@ -77,20 +112,23 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
               Row(
                 children: [
                   Expanded(
-                    child: FilledButton.icon(
+                    child: LiquidGlassButton(
                       onPressed: () => _showTestBottomSheet(context),
-                      icon: const Icon(Icons.vertical_align_bottom),
-                      label: const Text('Bottom Sheet'),
+                      icon: const NativeLiquidGlassIcon.iconData(
+                        Icons.vertical_align_bottom,
+                      ),
+                      label: 'Bottom Sheet',
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(builder: (_) => const _GlassScreenB()),
-                      ),
-                      icon: const Icon(Icons.arrow_forward),
-                      label: const Text('Push Screen'),
+                    child: LiquidGlassButton(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => _GlassScreenB()),
+                        );
+                      },
+                      label: 'Push Screen',
                     ),
                   ),
                 ],
@@ -98,7 +136,10 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
               const SizedBox(height: 8),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -107,11 +148,18 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
                         const SizedBox(height: 8),
                         SegmentedButton<LiquidGlassEffect>(
                           segments: const [
-                            ButtonSegment(value: LiquidGlassEffect.regular, label: Text('Regular')),
-                            ButtonSegment(value: LiquidGlassEffect.clear, label: Text('Clear')),
+                            ButtonSegment(
+                              value: LiquidGlassEffect.regular,
+                              label: Text('Regular'),
+                            ),
+                            ButtonSegment(
+                              value: LiquidGlassEffect.clear,
+                              label: Text('Clear'),
+                            ),
                           ],
                           selected: {_effect},
-                          onSelectionChanged: (s) => setState(() => _effect = s.first),
+                          onSelectionChanged: (s) =>
+                              setState(() => _effect = s.first),
                         ),
                         const SizedBox(height: 12),
                         _label(context, 'Shape'),
@@ -120,13 +168,26 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
                           scrollDirection: Axis.horizontal,
                           child: SegmentedButton<LiquidGlassEffectShape>(
                             segments: const [
-                              ButtonSegment(value: LiquidGlassEffectShape.rect, label: Text('Rect')),
-                              ButtonSegment(value: LiquidGlassEffectShape.capsule, label: Text('Capsule')),
-                              ButtonSegment(value: LiquidGlassEffectShape.circle, label: Text('Circle')),
-                              ButtonSegment(value: LiquidGlassEffectShape.custom, label: Text('Custom')),
+                              ButtonSegment(
+                                value: LiquidGlassEffectShape.rect,
+                                label: Text('Rect'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassEffectShape.capsule,
+                                label: Text('Capsule'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassEffectShape.circle,
+                                label: Text('Circle'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassEffectShape.custom,
+                                label: Text('Custom'),
+                              ),
                             ],
                             selected: {_shape},
-                            onSelectionChanged: (s) => setState(() => _shape = s.first),
+                            onSelectionChanged: (s) =>
+                                setState(() => _shape = s.first),
                           ),
                         ),
                         if (_shape == LiquidGlassEffectShape.custom) ...[
@@ -139,13 +200,35 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
                               ButtonSegment(value: 1, label: Text('Diamond')),
                             ],
                             selected: {_customShapeIndex},
-                            onSelectionChanged: (s) => setState(() => _customShapeIndex = s.first),
+                            onSelectionChanged: (s) =>
+                                setState(() => _customShapeIndex = s.first),
                           ),
                         ],
                         if (_shape == LiquidGlassEffectShape.rect)
-                          _sliderRow('Radius', _cornerRadius, 0, 40, 20, (v) => setState(() => _cornerRadius = v)),
-                        _sliderRow('Width', _width, 40, 340, 30, (v) => setState(() => _width = v)),
-                        _sliderRow('Height', _height, 40, 340, 30, (v) => setState(() => _height = v)),
+                          _sliderRow(
+                            'Radius',
+                            _cornerRadius,
+                            0,
+                            40,
+                            20,
+                            (v) => setState(() => _cornerRadius = v),
+                          ),
+                        _sliderRow(
+                          'Width',
+                          _width,
+                          40,
+                          340,
+                          30,
+                          (v) => setState(() => _width = v),
+                        ),
+                        _sliderRow(
+                          'Height',
+                          _height,
+                          40,
+                          340,
+                          30,
+                          (v) => setState(() => _height = v),
+                        ),
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Interactive'),
@@ -185,7 +268,10 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Flutter Bottom Sheet', style: Theme.of(ctx).textTheme.titleLarge),
+            Text(
+              'Flutter Bottom Sheet',
+              style: Theme.of(ctx).textTheme.titleLarge,
+            ),
             const SizedBox(height: 24),
             LiquidGlassContainer(
               config: const LiquidGlassConfig(
@@ -198,7 +284,10 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
               child: const Center(child: Text('Glass inside sheet')),
             ),
             const SizedBox(height: 16),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
           ],
         ),
       ),
@@ -206,11 +295,18 @@ class _LiquidGlassContainerPreviewPageState extends State<LiquidGlassContainerPr
   }
 
   Widget _label(BuildContext context, String text) => Align(
-        alignment: Alignment.centerLeft,
-        child: Text(text, style: Theme.of(context).textTheme.titleSmall),
-      );
+    alignment: Alignment.centerLeft,
+    child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+  );
 
-  Widget _sliderRow(String label, double value, double min, double max, int divisions, ValueChanged<double> onChanged) {
+  Widget _sliderRow(
+    String label,
+    double value,
+    double min,
+    double max,
+    int divisions,
+    ValueChanged<double> onChanged,
+  ) {
     return Row(
       children: [
         SizedBox(width: 52, child: Text(label)),
@@ -240,7 +336,13 @@ class _GlassScreenB extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Screen B (Glass)')),
+      appBar: AppBar(
+        leading: LiquidGlassButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: NativeLiquidGlassIcon.sfSymbol('chevron.left'),
+        ),
+        title: const Text('Screen B (Glass)'),
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -267,8 +369,10 @@ class _GlassScreenB extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Sheet from Screen B',
-                            style: Theme.of(ctx).textTheme.titleLarge),
+                        Text(
+                          'Sheet from Screen B',
+                          style: Theme.of(ctx).textTheme.titleLarge,
+                        ),
                         const SizedBox(height: 24),
                         LiquidGlassContainer(
                           config: const LiquidGlassConfig(
@@ -278,12 +382,15 @@ class _GlassScreenB extends StatelessWidget {
                           ),
                           width: 200,
                           height: 56,
-                          child: const Center(child: Text('Glass inside sheet')),
+                          child: const Center(
+                            child: Text('Glass inside sheet'),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Close')),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Close'),
+                        ),
                       ],
                     ),
                   ),
@@ -309,11 +416,32 @@ const _svgCurvePathSize = Size(24, 226);
 const _svgCurvePath = [
   LiquidGlassPathOp.moveTo(24, 37.7794),
   LiquidGlassPathOp.cubicTo(24, 31.0743, 24, 27.7217, 22.6889, 25.1523),
-  LiquidGlassPathOp.cubicTo(21.3779, 22.5828, 18.1255, 20.2256, 11.6208, 15.5111),
+  LiquidGlassPathOp.cubicTo(
+    21.3779,
+    22.5828,
+    18.1255,
+    20.2256,
+    11.6208,
+    15.5111,
+  ),
   LiquidGlassPathOp.cubicTo(5.74982, 11.2559, 0, 5.90567, 0, 1.27187),
   LiquidGlassPathOp.cubicTo(0, -8.19519, 0.00015, 232.779, 0, 224.806),
-  LiquidGlassPathOp.cubicTo(-0.000082, 220.573, 6.76777, 214.354, 13.1156, 209.452),
-  LiquidGlassPathOp.cubicTo(18.7325, 205.115, 21.541, 202.947, 22.7705, 200.444),
+  LiquidGlassPathOp.cubicTo(
+    -0.000082,
+    220.573,
+    6.76777,
+    214.354,
+    13.1156,
+    209.452,
+  ),
+  LiquidGlassPathOp.cubicTo(
+    18.7325,
+    205.115,
+    21.541,
+    202.947,
+    22.7705,
+    200.444,
+  ),
   LiquidGlassPathOp.cubicTo(24, 197.941, 24, 194.803, 24, 188.526),
   LiquidGlassPathOp.lineTo(24, 37.7794),
   LiquidGlassPathOp.close(),

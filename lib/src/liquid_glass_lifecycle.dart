@@ -1,6 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+final class LiquidGlassPopupRouteTracker {
+  LiquidGlassPopupRouteTracker._();
+
+  static int _popupRouteCount = 0;
+
+  static bool get hasActivePopupRoute => _popupRouteCount > 0;
+
+  static void pushPopupRoute() {
+    _popupRouteCount++;
+  }
+
+  static void popPopupRoute() {
+    _popupRouteCount--;
+    if (_popupRouteCount < 0) {
+      _popupRouteCount = 0;
+    }
+  }
+}
+
 /// Controls the visibility of all native Liquid Glass platform views.
 ///
 /// Native glass views are real `UIView`s composited on top of Flutter's
@@ -78,6 +97,7 @@ class LiquidGlassNavigatorObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (route is PopupRoute) {
+      LiquidGlassPopupRouteTracker.pushPopupRoute();
       NativeLiquidGlassLifecycle.suppressGlassEffects();
     }
   }
@@ -85,6 +105,7 @@ class LiquidGlassNavigatorObserver extends NavigatorObserver {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (route is PopupRoute) {
+      LiquidGlassPopupRouteTracker.popPopupRoute();
       NativeLiquidGlassLifecycle.unsuppressGlassEffects();
     }
   }
@@ -92,6 +113,7 @@ class LiquidGlassNavigatorObserver extends NavigatorObserver {
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (route is PopupRoute) {
+      LiquidGlassPopupRouteTracker.popPopupRoute();
       NativeLiquidGlassLifecycle.unsuppressGlassEffects();
     }
   }
@@ -100,10 +122,12 @@ class LiquidGlassNavigatorObserver extends NavigatorObserver {
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     // A popup was replaced by a non-popup (or removed).
     if (oldRoute is PopupRoute && newRoute is! PopupRoute) {
+      LiquidGlassPopupRouteTracker.popPopupRoute();
       NativeLiquidGlassLifecycle.unsuppressGlassEffects();
     }
     // A non-popup was replaced by a popup.
     if (newRoute is PopupRoute && oldRoute is! PopupRoute) {
+      LiquidGlassPopupRouteTracker.pushPopupRoute();
       NativeLiquidGlassLifecycle.suppressGlassEffects();
     }
   }

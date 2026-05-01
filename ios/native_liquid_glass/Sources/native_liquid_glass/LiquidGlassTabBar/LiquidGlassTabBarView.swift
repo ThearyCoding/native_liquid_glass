@@ -14,6 +14,7 @@ final class LiquidGlassNativeTabBarControllerView: UIView, UITabBarControllerDel
   let tabBarController = UITabBarController()
   private let onTabSelected: (Int) -> Void
   private let onActionButtonPressed: () -> Void
+  var isInteractionSuppressed: (() -> Bool)?
   private let selectedItemColor: UIColor?
   private let selectableTabCount: Int
   private let tabSelectedColors: [UIColor?]
@@ -456,6 +457,9 @@ final class LiquidGlassNativeTabBarControllerView: UIView, UITabBarControllerDel
   func tabBarController(
     _ tabBarController: UITabBarController, shouldSelect viewController: UIViewController
   ) -> Bool {
+    if isInteractionSuppressed?() == true {
+      return false
+    }
     if viewController.tabBarItem.tag == Self.actionButtonTag {
       onActionButtonPressed()
       return false
@@ -467,6 +471,9 @@ final class LiquidGlassNativeTabBarControllerView: UIView, UITabBarControllerDel
   func tabBarController(
     _ tabBarController: UITabBarController, didSelect viewController: UIViewController
   ) {
+    if isInteractionSuppressed?() == true {
+      return
+    }
     guard let viewControllers = tabBarController.viewControllers,
       let index = viewControllers.firstIndex(where: { $0 === viewController }),
       index < selectableTabCount
@@ -545,7 +552,7 @@ final class LiquidGlassTabBarPlatformView: NSObject, FlutterPlatformView {
     )
 
     super.init()
-    suppressObserver = GlassSuppressObserver(view: containerView)
+    suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
     setupView(arguments: args as? [String: Any])
     setupMethodChannelHandler()
   }
@@ -570,6 +577,9 @@ final class LiquidGlassTabBarPlatformView: NSObject, FlutterPlatformView {
         self?.channel.invokeMethod("onActionButtonPressed", arguments: nil)
       }
     )
+    nativeView.isInteractionSuppressed = { [weak self] in
+      self?.suppressObserver?.isInteractionSuppressed ?? false
+    }
     nativeView.translatesAutoresizingMaskIntoConstraints = false
     nativeView.attach(to: hostViewController)
 

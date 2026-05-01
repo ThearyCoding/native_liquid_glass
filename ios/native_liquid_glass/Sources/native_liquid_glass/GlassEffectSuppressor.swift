@@ -96,12 +96,30 @@ final class GlassEffectSuppressor {
 ///   result(nil)
 /// ```
 final class GlassSuppressObserver {
+  enum RouteSuppressionStyle {
+    case hidden
+    case disabled
+  }
+  var forceShow: Bool = false
   private weak var targetView: UIView?
+  private let hidesView: Bool
   private var isSuppressedByRoute = false
   private var isSuppressedGlobally = false
+  private var routeSuppressionStyle: RouteSuppressionStyle = .hidden
 
-  init(view: UIView) {
+  var isInteractionSuppressed: Bool {
+    isSuppressedByRoute || isSuppressedGlobally
+  }
+  func setForceShow(_ force: Bool) {
+    forceShow = force
+    if force {
+      // Force show - always visible and interactive
+      updateAlpha()
+    }
+  }
+  init(view: UIView, hidesView: Bool = true) {
     self.targetView = view
+    self.hidesView = hidesView
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(handleSuppress),
@@ -123,7 +141,14 @@ final class GlassSuppressObserver {
   /// Called by the platform view's method channel when the Dart-side
   /// `ModalRoute.of(context).isCurrent` changes.
   func setRouteSuppressed(_ suppressed: Bool) {
+    setRouteSuppressed(suppressed, style: .hidden)
+  }
+
+  /// Allows a route suppression to either fully hide the view (page push)
+  /// or keep it visible but disable interaction (popup/modal).
+  func setRouteSuppressed(_ suppressed: Bool, style: RouteSuppressionStyle) {
     isSuppressedByRoute = suppressed
+    routeSuppressionStyle = suppressed ? style : .hidden
     updateAlpha()
   }
 
@@ -140,12 +165,24 @@ final class GlassSuppressObserver {
     updateAlpha()
   }
 
-  // MARK: - Alpha
-
   private func updateAlpha() {
-    let shouldHide = isSuppressedByRoute || isSuppressedGlobally
-    UIView.animate(withDuration: shouldHide ? 0.15 : 0.25) {
-      self.targetView?.alpha = shouldHide ? 0 : 1
+    // If forceShow is true, never suppress
+    let shouldSuppress = forceShow ? false : (isSuppressedByRoute || isSuppressedGlobally)
+
+    guard let view = targetView else { return }
+
+    let shouldHideView =
+      !forceShow
+      && (isSuppressedGlobally
+        ? hidesView : (isSuppressedByRoute && routeSuppressionStyle == .hidden))
+
+    if shouldHideView {
+      UIView.animate(withDuration: shouldSuppress ? 0.15 : 0.25) {
+        view.alpha = shouldSuppress ? 0 : 1
+      }
+    } else {
+      view.alpha = 1
     }
+    view.isUserInteractionEnabled = forceShow ? true : !shouldSuppress
   }
 }

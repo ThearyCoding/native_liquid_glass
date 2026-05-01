@@ -11,10 +11,12 @@ class LiquidGlassButtonPreviewPage extends StatefulWidget {
   const LiquidGlassButtonPreviewPage({super.key, required this.onThemeChanged});
 
   @override
-  State<LiquidGlassButtonPreviewPage> createState() => _LiquidGlassButtonPreviewPageState();
+  State<LiquidGlassButtonPreviewPage> createState() =>
+      _LiquidGlassButtonPreviewPageState();
 }
 
-class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewPage> {
+class _LiquidGlassButtonPreviewPageState
+    extends State<LiquidGlassButtonPreviewPage> {
   int _pressCount = 0;
   bool _isEnabled = true;
   bool _iconOnly = false;
@@ -43,9 +45,15 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
     }
 
     return switch (_iconSource) {
-      _ButtonIconSource.sfSymbol => const NativeLiquidGlassIcon.sfSymbol('arrow.right.circle.fill'),
-      _ButtonIconSource.iconData => const NativeLiquidGlassIcon.iconData(Icons.arrow_forward_rounded),
-      _ButtonIconSource.asset => const NativeLiquidGlassIcon.asset('assets/icons/continue.svg'),
+      _ButtonIconSource.sfSymbol => const NativeLiquidGlassIcon.sfSymbol(
+        'arrow.right.circle.fill',
+      ),
+      _ButtonIconSource.iconData => const NativeLiquidGlassIcon.iconData(
+        Icons.arrow_forward_rounded,
+      ),
+      _ButtonIconSource.asset => const NativeLiquidGlassIcon.asset(
+        'assets/icons/continue.svg',
+      ),
     };
   }
 
@@ -55,6 +63,10 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
 
     return Scaffold(
       appBar: AppBar(
+        leading: LiquidGlassButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: NativeLiquidGlassIcon.sfSymbol('chevron.left'),
+        ),
         title: const Text('LiquidGlassButton preview'),
         actions: [ThemeModeActionButton(onThemeChanged: widget.onThemeChanged)],
       ),
@@ -65,13 +77,20 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Pressed: $_pressCount', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Pressed: $_pressCount',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 16),
                 if (_iconOnly)
                   Center(
                     child: LiquidGlassButton.icon(
-                      onPressed: _isEnabled ? () => setState(() => _pressCount++) : null,
-                      icon: _resolveIcon() ?? const NativeLiquidGlassIcon.sfSymbol('star.fill'),
+                      onPressed: _isEnabled
+                          ? () => setState(() => _pressCount++)
+                          : null,
+                      icon:
+                          _resolveIcon() ??
+                          const NativeLiquidGlassIcon.sfSymbol('star.fill'),
                       size: _iconButtonSize,
                       iconSize: _iconButtonSize * 0.44,
                       iconColor: _useIconColor ? colorScheme.primary : null,
@@ -102,10 +121,18 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                       imagePadding: _imagePadding,
                       imagePlacement: _imagePlacement,
                       iconColor: _useIconColor ? colorScheme.primary : null,
-                      foregroundColor: _useForegroundColor ? colorScheme.onSurface : null,
+                      foregroundColor: _useForegroundColor
+                          ? colorScheme.onSurface
+                          : null,
                       tint: _useGlassTint ? colorScheme.secondary : null,
                       interactive: _interactive,
-                      labelTextStyle: _useLabelTextStyle ? TextStyle(fontSize: _labelFontSize, fontWeight: FontWeight.bold, letterSpacing: 0.5) : null,
+                      labelTextStyle: _useLabelTextStyle
+                          ? TextStyle(
+                              fontSize: _labelFontSize,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            )
+                          : null,
                       showBadge: _badgeMode >= 1,
                       badgeValue: _badgeMode == 2 ? '3' : null,
                       badgeColor: _useBadgeColor ? Colors.blue : null,
@@ -116,7 +143,10 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                 SizedBox(height: 24),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -124,32 +154,53 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Icon-only mode'),
                           value: _iconOnly,
-                          onChanged: (value) => setState(() => _iconOnly = value),
+                          onChanged: (value) =>
+                              setState(() => _iconOnly = value),
                         ),
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Enabled'),
                           value: _isEnabled,
-                          onChanged: (value) => setState(() => _isEnabled = value),
+                          onChanged: (value) =>
+                              setState(() => _isEnabled = value),
                         ),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('Button style', style: Theme.of(context).textTheme.titleSmall),
+                          child: Text(
+                            'Button style',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: SegmentedButton<LiquidGlassButtonStyle>(
                             segments: const [
-                              ButtonSegment(value: LiquidGlassButtonStyle.glass, label: Text('Glass')),
-                              ButtonSegment(value: LiquidGlassButtonStyle.prominentGlass, label: Text('Prominent')),
-                              ButtonSegment(value: LiquidGlassButtonStyle.filled, label: Text('Filled')),
-                              ButtonSegment(value: LiquidGlassButtonStyle.tinted, label: Text('Tinted')),
-                              ButtonSegment(value: LiquidGlassButtonStyle.plain, label: Text('Plain')),
+                              ButtonSegment(
+                                value: LiquidGlassButtonStyle.glass,
+                                label: Text('Glass'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassButtonStyle.prominentGlass,
+                                label: Text('Prominent'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassButtonStyle.filled,
+                                label: Text('Filled'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassButtonStyle.tinted,
+                                label: Text('Tinted'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassButtonStyle.plain,
+                                label: Text('Plain'),
+                              ),
                             ],
                             selected: {_buttonStyle},
-                            onSelectionChanged: (sel) => setState(() => _buttonStyle = sel.first),
+                            onSelectionChanged: (sel) =>
+                                setState(() => _buttonStyle = sel.first),
                           ),
                         ),
                         if (!_iconOnly)
@@ -157,71 +208,102 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                             contentPadding: EdgeInsets.zero,
                             title: const Text('Glass interactive'),
                             value: _interactive,
-                            onChanged: (value) => setState(() => _interactive = value),
+                            onChanged: (value) =>
+                                setState(() => _interactive = value),
                           ),
                         if (!_iconOnly)
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: const Text('Show icon'),
                             value: _showIcon,
-                            onChanged: (value) => setState(() => _showIcon = value),
+                            onChanged: (value) =>
+                                setState(() => _showIcon = value),
                           ),
                         if (_showIcon || _iconOnly) ...[
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: Text('Icon source', style: Theme.of(context).textTheme.titleSmall),
+                            child: Text(
+                              'Icon source',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           SegmentedButton<_ButtonIconSource>(
                             segments: const [
-                              ButtonSegment<_ButtonIconSource>(value: _ButtonIconSource.sfSymbol, label: Text('SF Symbol')),
-                              ButtonSegment<_ButtonIconSource>(value: _ButtonIconSource.iconData, label: Text('IconData')),
-                              ButtonSegment<_ButtonIconSource>(value: _ButtonIconSource.asset, label: Text('Asset')),
+                              ButtonSegment<_ButtonIconSource>(
+                                value: _ButtonIconSource.sfSymbol,
+                                label: Text('SF Symbol'),
+                              ),
+                              ButtonSegment<_ButtonIconSource>(
+                                value: _ButtonIconSource.iconData,
+                                label: Text('IconData'),
+                              ),
+                              ButtonSegment<_ButtonIconSource>(
+                                value: _ButtonIconSource.asset,
+                                label: Text('Asset'),
+                              ),
                             ],
                             selected: <_ButtonIconSource>{_iconSource},
-                            onSelectionChanged: (selection) => setState(() => _iconSource = selection.first),
+                            onSelectionChanged: (selection) =>
+                                setState(() => _iconSource = selection.first),
                           ),
                         ],
                         if (_showIcon && !_iconOnly) ...[
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: Text('Image placement', style: Theme.of(context).textTheme.titleSmall),
+                            child: Text(
+                              'Image placement',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           SegmentedButton<LiquidGlassImagePlacement>(
                             segments: const [
-                              ButtonSegment(value: LiquidGlassImagePlacement.leading, label: Text('Leading')),
-                              ButtonSegment(value: LiquidGlassImagePlacement.trailing, label: Text('Trailing')),
+                              ButtonSegment(
+                                value: LiquidGlassImagePlacement.leading,
+                                label: Text('Leading'),
+                              ),
+                              ButtonSegment(
+                                value: LiquidGlassImagePlacement.trailing,
+                                label: Text('Trailing'),
+                              ),
                             ],
                             selected: {_imagePlacement},
-                            onSelectionChanged: (sel) => setState(() => _imagePlacement = sel.first),
+                            onSelectionChanged: (sel) =>
+                                setState(() => _imagePlacement = sel.first),
                           ),
                         ],
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Apply icon color'),
                           value: _useIconColor,
-                          onChanged: (value) => setState(() => _useIconColor = value),
+                          onChanged: (value) =>
+                              setState(() => _useIconColor = value),
                         ),
                         if (!_iconOnly)
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: const Text('Apply foreground color'),
                             value: _useForegroundColor,
-                            onChanged: (value) => setState(() => _useForegroundColor = value),
+                            onChanged: (value) =>
+                                setState(() => _useForegroundColor = value),
                           ),
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Apply glass tint color'),
                           value: _useGlassTint,
-                          onChanged: (value) => setState(() => _useGlassTint = value),
+                          onChanged: (value) =>
+                              setState(() => _useGlassTint = value),
                         ),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('Badge', style: Theme.of(context).textTheme.titleSmall),
+                          child: Text(
+                            'Badge',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         SegmentedButton<int>(
@@ -231,14 +313,16 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                             ButtonSegment(value: 2, label: Text('Value')),
                           ],
                           selected: {_badgeMode},
-                          onSelectionChanged: (sel) => setState(() => _badgeMode = sel.first),
+                          onSelectionChanged: (sel) =>
+                              setState(() => _badgeMode = sel.first),
                         ),
                         if (_badgeMode > 0) ...[
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: const Text('Custom badge color (blue)'),
                             value: _useBadgeColor,
-                            onChanged: (value) => setState(() => _useBadgeColor = value),
+                            onChanged: (value) =>
+                                setState(() => _useBadgeColor = value),
                           ),
                           Row(
                             children: [
@@ -250,7 +334,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 18,
                                   value: _badgeSize,
                                   label: _badgeSize.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _badgeSize = value),
+                                  onChanged: (value) =>
+                                      setState(() => _badgeSize = value),
                                 ),
                               ),
                               Text(_badgeSize.toStringAsFixed(0)),
@@ -262,7 +347,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                             contentPadding: EdgeInsets.zero,
                             title: const Text('Custom label text style'),
                             value: _useLabelTextStyle,
-                            onChanged: (value) => setState(() => _useLabelTextStyle = value),
+                            onChanged: (value) =>
+                                setState(() => _useLabelTextStyle = value),
                           ),
                           Row(
                             children: [
@@ -274,7 +360,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 16,
                                   value: _buttonWidth,
                                   label: _buttonWidth.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _buttonWidth = value),
+                                  onChanged: (value) =>
+                                      setState(() => _buttonWidth = value),
                                 ),
                               ),
                               Text(_buttonWidth.toStringAsFixed(0)),
@@ -290,7 +377,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 12,
                                   value: _buttonHeight,
                                   label: _buttonHeight.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _buttonHeight = value),
+                                  onChanged: (value) =>
+                                      setState(() => _buttonHeight = value),
                                 ),
                               ),
                               Text(_buttonHeight.toStringAsFixed(0)),
@@ -308,7 +396,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 24,
                                   value: _iconButtonSize,
                                   label: _iconButtonSize.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _iconButtonSize = value),
+                                  onChanged: (value) =>
+                                      setState(() => _iconButtonSize = value),
                                 ),
                               ),
                               Text(_iconButtonSize.toStringAsFixed(0)),
@@ -325,7 +414,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 14,
                                   value: _iconSize,
                                   label: _iconSize.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _iconSize = value),
+                                  onChanged: (value) =>
+                                      setState(() => _iconSize = value),
                                 ),
                               ),
                               Text(_iconSize.toStringAsFixed(0)),
@@ -342,7 +432,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 20,
                                   value: _imagePadding,
                                   label: _imagePadding.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _imagePadding = value),
+                                  onChanged: (value) =>
+                                      setState(() => _imagePadding = value),
                                 ),
                               ),
                               Text(_imagePadding.toStringAsFixed(0)),
@@ -359,7 +450,8 @@ class _LiquidGlassButtonPreviewPageState extends State<LiquidGlassButtonPreviewP
                                   divisions: 12,
                                   value: _labelFontSize,
                                   label: _labelFontSize.toStringAsFixed(0),
-                                  onChanged: (value) => setState(() => _labelFontSize = value),
+                                  onChanged: (value) =>
+                                      setState(() => _labelFontSize = value),
                                 ),
                               ),
                               Text(_labelFontSize.toStringAsFixed(0)),

@@ -16,8 +16,11 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
 
   // Pre-iOS 26 UIKit fallback
   private var uikitButtons: [UIButton] = []
+  private var legacyButtonConfigs: [LiquidGlassButtonConfig] = []
   private var stackView: UIStackView?
   private var suppressObserver: GlassSuppressObserver?
+  private var isRouteSuppressed = false
+  private var isPopupRouteSuppressed = false
 
   init(
     frame: CGRect,
@@ -35,7 +38,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     )
 
     super.init()
-    suppressObserver = GlassSuppressObserver(view: containerView)
+    suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
 
     let isDark = (args?["isDark"] as? Bool) ?? false
 
@@ -77,12 +80,26 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
           self.stackView?.removeFromSuperview()
           self.stackView = nil
           self.uikitButtons.removeAll()
+          self.legacyButtonConfigs.removeAll()
           self.configureLegacyUIKit(args: updateArgs)
         }
         result(nil)
       case "setSuppressed":
         let suppressed = (call.arguments as? [String: Any])?["suppressed"] as? Bool ?? false
-        self.suppressObserver?.setRouteSuppressed(suppressed)
+        let reason = (call.arguments as? [String: Any])?["reason"] as? String
+        self.isRouteSuppressed = suppressed
+        self.isPopupRouteSuppressed = suppressed && reason == "popup"
+        if #available(iOS 26.0, *) {
+          if let vm = self.viewModel as? LiquidGlassButtonGroupViewModel {
+            vm.isRouteSuppressed = suppressed
+            vm.isPopupRouteSuppressed = suppressed && reason == "popup"
+          }
+        } else {
+          self.applyLegacyConfiguration()
+        }
+        let style: GlassSuppressObserver.RouteSuppressionStyle =
+          (reason == "popup") ? .disabled : .hidden
+        self.suppressObserver?.setRouteSuppressed(suppressed, style: style)
         result(nil)
       default:
         result(FlutterMethodNotImplemented)
@@ -232,32 +249,18 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     for (index, dict) in buttonDicts.enumerated() {
       let mappedArgs = Self.remapButtonArgs(dict)
       let buttonConfig = LiquidGlassButtonConfig(arguments: mappedArgs, defaultIconOnly: false)
+      legacyButtonConfigs.append(buttonConfig)
 
       let button = UIButton(type: .system)
       button.tag = index
-      button.isEnabled = buttonConfig.enabled
+      button.isEnabled = buttonConfig.enabled && !isRouteSuppressed
       button.addTarget(self, action: #selector(handleButtonTap(_:)), for: .touchUpInside)
-
-      if #available(iOS 15.0, *) {
-        var configuration = UIButton.Configuration.borderedProminent()
-        configuration.cornerStyle = .capsule
-        if buttonConfig.iconOnly {
-          configuration.title = nil
-          configuration.imagePadding = 0
-        } else {
-          configuration.title = buttonConfig.title ?? "Button"
-          configuration.imagePadding = buttonConfig.imagePadding
-        }
-        configuration.image = buttonConfig.resolvedImage()
-        if let tintColor = buttonConfig.tint {
-          configuration.baseBackgroundColor = tintColor.withAlphaComponent(0.22)
-        }
-        button.configuration = configuration
-      }
 
       uikitButtons.append(button)
       sv.addArrangedSubview(button)
     }
+
+    applyLegacyConfiguration()
 
     containerView.addSubview(sv)
     NSLayoutConstraint.activate([
@@ -269,5 +272,52 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
   @objc
   private func handleButtonTap(_ sender: UIButton) {
     methodChannel.invokeMethod("onButtonPressed", arguments: sender.tag)
+  }
+
+  private func applyLegacyConfiguration() {
+    for (index, button) in uikitButtons.enumerated() {
+      guard index < legacyButtonConfigs.count else { continue }
+      let config = legacyButtonConfigs[index]
+      let usesTemporaryProminentStyle =
+        isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
+      let baseTintColor = config.tint ?? button.tintColor ?? .systemBlue
+      let resolvedForegroundColor =
+        usesTemporaryProminentStyle
+          ? UIColor.white
+          : (config.foregroundColor ?? config.iconColor ?? .label)
+
+      button.isEnabled = config.enabled && !isRouteSuppressed
+      button.tintColor = config.iconColor ?? resolvedForegroundColor
+      button.setTitleColor(resolvedForegroundColor, for: .normal)
+
+      if #available(iOS 15.0, *) {
+        var configuration: UIButton.Configuration =
+          usesTemporaryProminentStyle
+            ? .borderedProminent()
+            : .borderedProminent()
+        configuration.cornerStyle = .capsule
+        if config.iconOnly {
+          configuration.title = nil
+          configuration.imagePadding = 0
+        } else {
+          configuration.title = config.title ?? "Button"
+          configuration.imagePadding = config.imagePadding
+        }
+        configuration.image = config.resolvedImage()
+        configuration.baseForegroundColor = resolvedForegroundColor
+        configuration.baseBackgroundColor =
+          usesTemporaryProminentStyle
+            ? baseTintColor
+            : baseTintColor.withAlphaComponent(0.22)
+        button.configuration = configuration
+      } else {
+        button.backgroundColor =
+          usesTemporaryProminentStyle
+            ? baseTintColor
+            : baseTintColor.withAlphaComponent(0.22)
+        button.setImage(config.resolvedImage(), for: .normal)
+        button.setTitle(config.iconOnly ? nil : (config.title ?? "Button"), for: .normal)
+      }
+    }
   }
 }

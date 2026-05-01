@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:native_liquid_glass/native_liquid_glass.dart';
 
 import '../widgets/theme_mode_action_button.dart';
@@ -9,16 +10,19 @@ class LiquidGlassTabBarPreviewPage extends StatefulWidget {
   const LiquidGlassTabBarPreviewPage({super.key, required this.onThemeChanged});
 
   @override
-  State<LiquidGlassTabBarPreviewPage> createState() => _LiquidGlassTabBarPreviewPageState();
+  State<LiquidGlassTabBarPreviewPage> createState() =>
+      _LiquidGlassTabBarPreviewPageState();
 }
 
-class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewPage> {
+class _LiquidGlassTabBarPreviewPageState
+    extends State<LiquidGlassTabBarPreviewPage> {
   int _currentIndex = 0;
   bool _showLabels = true;
   bool _showActionButton = true;
   bool _useCustomColors = true;
   bool _useBadgeColor = false;
-  LiquidGlassTabBarItemPositioning _positioning = LiquidGlassTabBarItemPositioning.automatic;
+  LiquidGlassTabBarItemPositioning _positioning =
+      LiquidGlassTabBarItemPositioning.automatic;
   double _iconSize = 24;
   double _labelFontSize = 10;
   FontWeight _labelFontWeight = FontWeight.w500;
@@ -29,7 +33,12 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
       return null;
     }
 
-    const palette = <Color>[Color(0xFFFF6B6B), Color(0xFF4CD964), Color(0xFFFFC107), Color(0xFF5AC8FA)];
+    const palette = <Color>[
+      Color(0xFFFF6B6B),
+      Color(0xFF4CD964),
+      Color(0xFFFFC107),
+      Color(0xFF5AC8FA),
+    ];
 
     return palette[index % palette.length];
   }
@@ -70,7 +79,11 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
   }
 
   LiquidGlassTabItem _buildActionButton() {
-    return LiquidGlassTabItem(label: 'Add', icon: const NativeLiquidGlassIcon.sfSymbol('plus'), iconSize: _iconSize);
+    return LiquidGlassTabItem(
+      label: 'Add',
+      icon: const NativeLiquidGlassIcon.sfSymbol('plus'),
+      iconSize: _iconSize,
+    );
   }
 
   @override
@@ -79,6 +92,13 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
 
     return Scaffold(
       appBar: AppBar(
+        leading: LiquidGlassButton.icon(
+          enabled: true,
+          useLiquidGlassWhenPopupSuppressed: true,
+          onPressed: () => Navigator.pop(context),
+          icon: NativeLiquidGlassIcon.sfSymbol('chevron.left'),
+        ),
+
         title: const Text('LiquidGlassTabBar preview'),
         actions: [ThemeModeActionButton(onThemeChanged: widget.onThemeChanged)],
       ),
@@ -90,7 +110,12 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF0A0E2D), Color(0xFF1F4A73), Color(0xFF6D4FB3), Color(0xFFF07C73)],
+                  colors: [
+                    Color(0xFF0A0E2D),
+                    Color(0xFF1F4A73),
+                    Color(0xFF6D4FB3),
+                    Color(0xFFF07C73),
+                  ],
                 ),
               ),
             ),
@@ -106,7 +131,10 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Selected tab: ${items[_currentIndex].label}', style: Theme.of(context).textTheme.headlineSmall),
+                            Text(
+                              'Selected tab: ${items[_currentIndex].label}',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
                             const SizedBox(height: 24),
                             FilledButton(
                               onPressed: () {
@@ -119,13 +147,22 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text('Bottom Sheet', style: Theme.of(context).textTheme.headlineSmall),
+                                          Text(
+                                            'Bottom Sheet',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.headlineSmall,
+                                          ),
                                           const SizedBox(height: 16),
-                                          const Text('Check if the tab bar glass effect is clipped below.'),
+                                          const Text(
+                                            'Check if the tab bar glass effect is clipped below.',
+                                          ),
                                           const SizedBox(height: 24),
-                                          FilledButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('Close'),
+                                          LiquidGlassButton(
+                                            forceShow: true,
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            label: 'Close'
                                           ),
                                         ],
                                       ),
@@ -140,13 +177,17 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                               onPressed: () {
                                 showDialog(
                                   context: context,
+                                  barrierDismissible: false,
                                   builder: (context) => AlertDialog(
                                     title: const Text('Dialog'),
-                                    content: const Text('Check if the tab bar glass effect is clipped behind this dialog.'),
+                                    content: const Text(
+                                      'Check if the tab bar glass effect is clipped behind this dialog.',
+                                    ),
                                     actions: [
-                                      TextButton(
+                                      LiquidGlassButton(
+                                        forceShow: true,
                                         onPressed: () => Navigator.pop(context),
-                                        child: const Text('Close'),
+                                        label: 'Close'
                                       ),
                                     ],
                                   ),
@@ -161,7 +202,10 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                   ),
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -211,23 +255,41 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                               const Text('Item positioning: '),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: DropdownButton<LiquidGlassTabBarItemPositioning>(
-                                  isExpanded: true,
-                                  value: _positioning,
-                                  items: const [
-                                    DropdownMenuItem(value: LiquidGlassTabBarItemPositioning.automatic, child: Text('automatic')),
-                                    DropdownMenuItem(value: LiquidGlassTabBarItemPositioning.fill, child: Text('fill')),
-                                    DropdownMenuItem(value: LiquidGlassTabBarItemPositioning.centered, child: Text('centered')),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value == null) {
-                                      return;
-                                    }
-                                    setState(() {
-                                      _positioning = value;
-                                    });
-                                  },
-                                ),
+                                child:
+                                    DropdownButton<
+                                      LiquidGlassTabBarItemPositioning
+                                    >(
+                                      isExpanded: true,
+                                      value: _positioning,
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value:
+                                              LiquidGlassTabBarItemPositioning
+                                                  .automatic,
+                                          child: Text('automatic'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value:
+                                              LiquidGlassTabBarItemPositioning
+                                                  .fill,
+                                          child: Text('fill'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value:
+                                              LiquidGlassTabBarItemPositioning
+                                                  .centered,
+                                          child: Text('centered'),
+                                        ),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value == null) {
+                                          return;
+                                        }
+                                        setState(() {
+                                          _positioning = value;
+                                        });
+                                      },
+                                    ),
                               ),
                             ],
                           ),
@@ -254,11 +316,11 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                           ),
                           if (_showLabels) ...[
                             Row(
-                              children: [ 
+                              children: [
                                 Expanded(
                                   child: Slider.adaptive(
                                     min: 9,
-                                    max: 14, 
+                                    max: 14,
                                     divisions: 10,
                                     value: _labelFontSize,
                                     label: _labelFontSize.toStringAsFixed(1),
@@ -281,10 +343,22 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                                     isExpanded: true,
                                     value: _labelFontWeight,
                                     items: const [
-                                      DropdownMenuItem(value: FontWeight.w400, child: Text('w400')),
-                                      DropdownMenuItem(value: FontWeight.w500, child: Text('w500')),
-                                      DropdownMenuItem(value: FontWeight.w600, child: Text('w600')),
-                                      DropdownMenuItem(value: FontWeight.w700, child: Text('w700')),
+                                      DropdownMenuItem(
+                                        value: FontWeight.w400,
+                                        child: Text('w400'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: FontWeight.w500,
+                                        child: Text('w500'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: FontWeight.w600,
+                                        child: Text('w600'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: FontWeight.w700,
+                                        child: Text('w700'),
+                                      ),
                                     ],
                                     onChanged: (value) {
                                       if (value == null) {
@@ -307,7 +381,9 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
                                     max: 2.0,
                                     divisions: 10,
                                     value: _labelLetterSpacing,
-                                    label: _labelLetterSpacing.toStringAsFixed(1),
+                                    label: _labelLetterSpacing.toStringAsFixed(
+                                      1,
+                                    ),
                                     onChanged: (value) {
                                       setState(() {
                                         _labelLetterSpacing = value;
@@ -333,6 +409,7 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: LiquidGlassTabBar(
+          forceShow: true,
           items: items,
           iosActionButton: _showActionButton ? _buildActionButton() : null,
           currentIndex: _currentIndex,
@@ -342,13 +419,44 @@ class _LiquidGlassTabBarPreviewPageState extends State<LiquidGlassTabBarPreviewP
             });
           },
           onActionButtonPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Action button tapped')));
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   const SnackBar(content: Text('Action button tapped')),
+            // );
+            Get.to(() => LiquidGlassTabBarPage2());
           },
           showLabels: _showLabels,
-          labelTextStyle: TextStyle(fontSize: _labelFontSize, fontWeight: _labelFontWeight, letterSpacing: _labelLetterSpacing),
+          labelTextStyle: TextStyle(
+            fontSize: _labelFontSize,
+            fontWeight: _labelFontWeight,
+            letterSpacing: _labelLetterSpacing,
+          ),
           iosItemPositioning: _positioning,
-          iosItemSpacing: _positioning == LiquidGlassTabBarItemPositioning.centered ? 24 : null,
-          iosItemWidth: _positioning == LiquidGlassTabBarItemPositioning.centered ? 72 : null,
+          iosItemSpacing:
+              _positioning == LiquidGlassTabBarItemPositioning.centered
+              ? 24
+              : null,
+          iosItemWidth:
+              _positioning == LiquidGlassTabBarItemPositioning.centered
+              ? 72
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+class LiquidGlassTabBarPage2 extends StatelessWidget {
+  const LiquidGlassTabBarPage2({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: LiquidGlassButton.icon(
+          onPressed: () => Get.back(),
+          icon: NativeLiquidGlassIcon.iconData(Icons.arrow_back_ios),
         ),
       ),
     );

@@ -31,10 +31,15 @@ struct LiquidGlassButtonConfig {
   let borderRadius: CGFloat?
   let contentInsets: NSDirectionalEdgeInsets?
   let interaction: Bool
+  let useLiquidGlassWhenPopupSuppressed: Bool
   let labelColor: UIColor?
   let maxLines: Int?
   let borderColor: UIColor?
   let borderWidth: CGFloat
+
+  func withEnabled(_ enabled: Bool) -> LiquidGlassButtonConfig {
+    LiquidGlassButtonConfig(copying: self, enabled: enabled)
+  }
 
   /// Optional label typography customization.
   struct LabelStyle {
@@ -109,6 +114,41 @@ struct LiquidGlassButtonConfig {
     let green = CGFloat((argb >> 8) & 0xFF) / 255.0
     let blue = CGFloat(argb & 0xFF) / 255.0
     return UIColor(red: red, green: green, blue: blue, alpha: alpha)
+  }
+
+  private init(copying other: LiquidGlassButtonConfig, enabled: Bool) {
+    title = other.title
+    sfSymbolName = other.sfSymbolName
+    iconDataPng = other.iconDataPng
+    assetIconPng = other.assetIconPng
+    width = other.width
+    height = other.height
+    self.enabled = enabled
+    iconOnly = other.iconOnly
+    iconSize = other.iconSize
+    foregroundColor = other.foregroundColor
+    iconColor = other.iconColor
+    tint = other.tint
+    imagePadding = other.imagePadding
+    interactive = other.interactive
+    glassEffectUnionId = other.glassEffectUnionId
+    glassEffectId = other.glassEffectId
+    imagePlacement = other.imagePlacement
+    badgeValue = other.badgeValue
+    showBadge = other.showBadge
+    badgeColor = other.badgeColor
+    badgeTextColor = other.badgeTextColor
+    badgeSize = other.badgeSize
+    labelStyle = other.labelStyle
+    buttonStyle = other.buttonStyle
+    borderRadius = other.borderRadius
+    contentInsets = other.contentInsets
+    interaction = other.interaction
+    useLiquidGlassWhenPopupSuppressed = other.useLiquidGlassWhenPopupSuppressed
+    labelColor = other.labelColor
+    maxLines = other.maxLines
+    borderColor = other.borderColor
+    borderWidth = other.borderWidth
   }
 
   init(arguments args: [String: Any]?, defaultIconOnly: Bool) {
@@ -213,6 +253,8 @@ struct LiquidGlassButtonConfig {
     }
 
     interaction = (args?["interaction"] as? Bool) ?? true
+    useLiquidGlassWhenPopupSuppressed =
+      (args?["useLiquidGlassWhenPopupSuppressed"] as? Bool) ?? false
     labelColor = Self.decodeColor(from: args?["labelColor"])
 
     if let ml = (args?["maxLines"] as? NSNumber)?.intValue, ml > 0 {

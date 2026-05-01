@@ -19,6 +19,8 @@ class LiquidGlassButtonGroupViewModel: ObservableObject {
   @Published var axis: Axis = .horizontal
   @Published var spacing: CGFloat = 8.0
   @Published var spacingForGlass: CGFloat = 40.0
+  @Published var isRouteSuppressed: Bool = false
+  @Published var isPopupRouteSuppressed: Bool = false
 
   func updateButtons(_ newButtons: [LiquidGlassButtonData]) {
     buttons = newButtons
@@ -49,6 +51,8 @@ struct LiquidGlassButtonGroupSwiftUI: View {
             LiquidGlassButtonGroupItemView(
               config: button.buttonConfig,
               onPressed: button.onPressed,
+              isRouteSuppressed: viewModel.isRouteSuppressed,
+              isPopupRouteSuppressed: viewModel.isPopupRouteSuppressed,
               namespace: namespace
             )
             .fixedSize(horizontal: true, vertical: false)
@@ -61,6 +65,8 @@ struct LiquidGlassButtonGroupSwiftUI: View {
             LiquidGlassButtonGroupItemView(
               config: button.buttonConfig,
               onPressed: button.onPressed,
+              isRouteSuppressed: viewModel.isRouteSuppressed,
+              isPopupRouteSuppressed: viewModel.isPopupRouteSuppressed,
               namespace: namespace
             )
             .fixedSize(horizontal: true, vertical: false)

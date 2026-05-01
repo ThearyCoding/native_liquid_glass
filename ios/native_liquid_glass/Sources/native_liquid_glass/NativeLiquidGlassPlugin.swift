@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 public class NativeLiquidGlassPlugin: NSObject, FlutterPlugin {
-  private static var presenter: LiquidGlassPresenter?
+  private static var presenters: [ObjectIdentifier: LiquidGlassPresenter] = [:]
   private static let tabBarViewType = "liquid-glass-tab-bar-view"
   private static let buttonViewType = "liquid-glass-button-view"
   private static let iconButtonViewType = "liquid-glass-icon-button-view"
@@ -21,8 +21,9 @@ public class NativeLiquidGlassPlugin: NSObject, FlutterPlugin {
   private static let stepperViewType = "liquid-glass-stepper-view"
   private static let activityIndicatorViewType = "liquid-glass-activity-indicator-view"
   private static let progressViewType = "liquid-glass-progress-view"
+  private static let textFieldViewType = "liquid-glass-text-field-view"
 
-  public static func register(with registrar: FlutterPluginRegistrar) {
+  public static func registerViewFactories(with registrar: FlutterPluginRegistrar) {
     let tabBarFactory = LiquidGlassTabBarViewFactory(
       messenger: registrar.messenger(),
       hostViewController: registrar.viewController
@@ -66,7 +67,8 @@ public class NativeLiquidGlassPlugin: NSObject, FlutterPlugin {
       messenger: registrar.messenger(),
       hostViewController: registrar.viewController
     )
-
+    let textFieldFactory = LiquidGlassTextFieldViewFactory(messenger: registrar.messenger())
+    registrar.register(textFieldFactory, withId: textFieldViewType)
     registrar.register(tabBarFactory, withId: tabBarViewType)
     registrar.register(buttonFactory, withId: buttonViewType)
     registrar.register(iconButtonFactory, withId: iconButtonViewType)
@@ -98,14 +100,22 @@ public class NativeLiquidGlassPlugin: NSObject, FlutterPlugin {
 
     let progressViewFactory = LiquidGlassProgressViewFactory(messenger: registrar.messenger())
     registrar.register(progressViewFactory, withId: progressViewType)
+  }
+
+  public static func register(with registrar: FlutterPluginRegistrar) {
+    registerViewFactories(with: registrar)
 
     // Initialize the shared presenter for modal presentation (sheets, alerts, popovers)
-    presenter = LiquidGlassPresenter(
-      messenger: registrar.messenger(),
-      hostViewController: registrar.viewController
-    )
+    let messenger = registrar.messenger()
+    let key = ObjectIdentifier(messenger as AnyObject)
+    if presenters[key] == nil {
+      presenters[key] = LiquidGlassPresenter(
+        messenger: messenger,
+        hostViewController: registrar.viewController
+      )
+    }
 
     // Initialize lifecycle channel for glass effect suppression (overlay handling)
-    GlassEffectSuppressor.shared.setup(messenger: registrar.messenger())
+    GlassEffectSuppressor.shared.setup(messenger: messenger)
   }
 }

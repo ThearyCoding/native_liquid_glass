@@ -26,3 +26,4 @@ export 'src/utils/liquid_glass_spring.dart';
 export 'src/utils/liquid_glass_route_suppression.dart';
 export 'src/utils/native_liquid_glass_utils.dart';
 export 'src/utils/svg_path_extension.dart';
+export 'src/liquid_glass_text_field.dart';

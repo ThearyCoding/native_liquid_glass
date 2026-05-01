@@ -111,6 +111,16 @@ class LiquidGlassButtonData {
   /// Whether the button responds to touch events.
   final bool interaction;
 
+  /// Whether a Flutter popup/modal should keep this button's Liquid Glass
+  /// appearance instead of temporarily switching to a standard
+  /// `borderedProminent` button style.
+  ///
+  /// When false (the default), popup suppression keeps the button visible but
+  /// disabled and temporarily renders it as a standard prominent button. When
+  /// true, popup suppression keeps the Liquid Glass style while still
+  /// disabling interaction.
+  final bool useLiquidGlassWhenPopupSuppressed;
+
   /// Maximum number of lines for the label text.
   final int? maxLines;
 
@@ -145,6 +155,7 @@ class LiquidGlassButtonData {
     this.style = LiquidGlassButtonStyle.glass,
     this.interactive = true,
     this.interaction = true,
+    this.useLiquidGlassWhenPopupSuppressed = false,
     this.maxLines,
     this.glassEffectUnionId,
     this.glassEffectId,
@@ -305,6 +316,7 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
             b.style,
             b.interactive,
             b.interaction,
+            b.useLiquidGlassWhenPopupSuppressed,
             b.maxLines,
             b.glassEffectUnionId,
             b.glassEffectId,
@@ -400,6 +412,8 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
         'style': b.style.name,
         'interactive': b.interactive,
         'interaction': b.interaction,
+        'useLiquidGlassWhenPopupSuppressed':
+            b.useLiquidGlassWhenPopupSuppressed,
         if (b.maxLines != null) 'maxLines': b.maxLines,
         if (b.glassEffectUnionId != null) 'glassEffectUnionId': b.glassEffectUnionId,
         if (b.glassEffectId != null) 'glassEffectId': b.glassEffectId,

@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:native_liquid_glass/native_liquid_glass.dart';
 
 import '../widgets/theme_mode_action_button.dart';
 
 class LiquidGlassSheetPreviewPage extends StatefulWidget {
+  static const String flutterSheetRoute = '/flutter-sheet';
+
   final ValueChanged<bool> onThemeChanged;
 
   const LiquidGlassSheetPreviewPage({super.key, required this.onThemeChanged});
 
   @override
-  State<LiquidGlassSheetPreviewPage> createState() => _LiquidGlassSheetPreviewPageState();
+  State<LiquidGlassSheetPreviewPage> createState() =>
+      _LiquidGlassSheetPreviewPageState();
 }
 
-class _LiquidGlassSheetPreviewPageState extends State<LiquidGlassSheetPreviewPage> {
+class _LiquidGlassSheetPreviewPageState
+    extends State<LiquidGlassSheetPreviewPage> {
   LiquidGlassSheetHandle? _activeHandle;
   bool _showTitle = true;
   bool _showMessage = true;
@@ -22,16 +28,18 @@ class _LiquidGlassSheetPreviewPageState extends State<LiquidGlassSheetPreviewPag
   bool _largeDetent = true;
 
   List<LiquidGlassSheetDetent> get _detents => [
-        if (_mediumDetent) LiquidGlassSheetDetent.medium,
-        if (_largeDetent) LiquidGlassSheetDetent.large,
-      ];
+    if (_mediumDetent) LiquidGlassSheetDetent.medium,
+    if (_largeDetent) LiquidGlassSheetDetent.large,
+  ];
 
-  void _showSheet(BuildContext context) {
+  void _showBuilderSheet(BuildContext context) {
     _activeHandle?.dismiss();
     _activeHandle = LiquidGlassSheet.show(
       context: context,
       title: _showTitle ? 'Sheet Title' : null,
-      message: _showMessage ? 'This is a Liquid Glass native sheet on iOS 26+.' : null,
+      message: _showMessage
+          ? 'This is a Liquid Glass native sheet on iOS 26+.'
+          : null,
       detents: _detents.isNotEmpty ? _detents : [LiquidGlassSheetDetent.medium],
       prefersGrabberVisible: _prefersGrabberVisible,
       isModal: _isModal,
@@ -52,6 +60,17 @@ class _LiquidGlassSheetPreviewPageState extends State<LiquidGlassSheetPreviewPag
           ],
         ),
       ),
+    );
+  }
+
+  void _showRouteSheet(BuildContext context) {
+    _activeHandle?.dismiss();
+    _activeHandle = LiquidGlassSheet.show(
+      context: context,
+      route: LiquidGlassSheetPreviewPage.flutterSheetRoute,
+      detents: _detents.isNotEmpty ? _detents : [LiquidGlassSheetDetent.medium],
+      prefersGrabberVisible: _prefersGrabberVisible,
+      isModal: _isModal,
     );
   }
 
@@ -76,16 +95,30 @@ class _LiquidGlassSheetPreviewPageState extends State<LiquidGlassSheetPreviewPag
             children: [
               Expanded(
                 child: Center(
-                  child: FilledButton.icon(
-                    onPressed: () => _showSheet(context),
-                    icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Show Sheet'),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => _showBuilderSheet(context),
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Show builder sheet'),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () => _showRouteSheet(context),
+                        icon: const Icon(Icons.route_rounded),
+                        label: const Text('Show route sheet'),
+                      ),
+                    ],
                   ),
                 ),
               ),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -105,7 +138,8 @@ class _LiquidGlassSheetPreviewPageState extends State<LiquidGlassSheetPreviewPag
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Prefers grabber visible'),
                         value: _prefersGrabberVisible,
-                        onChanged: (v) => setState(() => _prefersGrabberVisible = v),
+                        onChanged: (v) =>
+                            setState(() => _prefersGrabberVisible = v),
                       ),
                       SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
@@ -128,6 +162,100 @@ class _LiquidGlassSheetPreviewPageState extends State<LiquidGlassSheetPreviewPag
                     ],
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FlutterSheetRoutePage extends StatefulWidget {
+  const FlutterSheetRoutePage({super.key});
+
+  @override
+  State<FlutterSheetRoutePage> createState() => _FlutterSheetRoutePageState();
+}
+
+class _FlutterSheetRoutePageState extends State<FlutterSheetRoutePage> {
+  static const _presenterChannel = MethodChannel('liquid-glass-presenter');
+  String _selectedLanguage = 'English';
+
+  int? get _sheetId {
+    final idFromGet = Get.parameters['_sheetId'];
+    if (idFromGet != null) {
+      return int.tryParse(idFromGet);
+    }
+
+    final routeName = ModalRoute.of(context)?.settings.name;
+    if (routeName == null) {
+      return null;
+    }
+    return int.tryParse(Uri.parse(routeName).queryParameters['_sheetId'] ?? '');
+  }
+
+  Future<void> _closeSheet() async {
+
+    final sheetId = _sheetId;
+
+    print('Closing sheet with id: $sheetId');
+    if (sheetId != null) {
+   await _presenterChannel.invokeMethod<void>('dismissSheet', {
+        'id': _sheetId,
+      });
+      return;
+    }
+
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Material(
+        type: MaterialType.transparency,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Language selection',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Choose your preferred language for this sheet.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 20),
+              DropdownButton<String>(
+                value: _selectedLanguage,
+                items: const [
+                  DropdownMenuItem(value: 'English', child: Text('English')),
+                  DropdownMenuItem(value: 'Spanish', child: Text('Spanish')),
+                  DropdownMenuItem(value: 'French', child: Text('French')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedLanguage = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'This is normal content inside the native Flutter sheet. It does not use a Scaffold.',
+              ),
+              const SizedBox(height: 24),
+              LiquidGlassButton(
+                onPressed: _closeSheet,
+                label: 'Close sheet'
               ),
             ],
           ),

@@ -7,23 +7,42 @@ import UIKit
 struct LiquidGlassButtonGroupItemView: View {
   let config: LiquidGlassButtonConfig
   let onPressed: () -> Void
+  let isRouteSuppressed: Bool
+  let isPopupRouteSuppressed: Bool
   var namespace: Namespace.ID
 
+  private var isEffectivelyEnabled: Bool {
+    config.enabled && !isRouteSuppressed
+  }
+
+  private var effectiveButtonStyle: String {
+    isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
+      ? "borderedProminent"
+      : config.buttonStyle
+  }
+
   var body: some View {
-    Button(action: handlePress) {
-      buttonLabel
-        .padding(resolvedPadding())
-        .frame(width: config.width, height: resolvedFrameHeight())
-        .contentShape(resolvedShape())
-        .glassEffect(resolvedGlass(), in: resolvedShape())
-        .applyLiquidGlassEffectModifiers(
-          unionId: config.glassEffectUnionId,
-          id: config.glassEffectId,
-          namespace: namespace
-        )
+    Group {
+      if isGlassStyle {
+        Button(action: handlePress) {
+          buttonLabel
+            .padding(resolvedPadding())
+            .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
+            .contentShape(resolvedShape())
+            .glassEffect(resolvedGlass(), in: resolvedShape())
+            .applyLiquidGlassEffectModifiers(
+              unionId: config.glassEffectUnionId,
+              id: config.glassEffectId,
+              namespace: namespace
+            )
+        }
+        .clipShape(resolvedShape())
+        .disabled(!isEffectivelyEnabled)
+        .buttonStyle(LiquidGlassNoHighlightButtonStyle())
+      } else {
+        standardButtonView
+      }
     }
-    .disabled(!config.enabled)
-    .buttonStyle(LiquidGlassNoHighlightButtonStyle())
     .allowsHitTesting(config.interaction)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityLabel)
@@ -100,10 +119,48 @@ struct LiquidGlassButtonGroupItemView: View {
   }
 
   private var effectiveTextColor: Color? {
+    let isBackgroundTintStyle = ["filled", "borderedProminent", "prominentGlass"].contains(
+      effectiveButtonStyle)
+    if isBackgroundTintStyle {
+      if let c = config.labelColor { return Color(uiColor: c) }
+      if let c = config.foregroundColor { return Color(uiColor: c) }
+      return nil
+    }
     if let c = config.labelColor { return Color(uiColor: c) }
     if let c = config.foregroundColor { return Color(uiColor: c) }
     if let c = config.tint { return Color(uiColor: c) }
     return nil
+  }
+
+  // MARK: - Standard button fallback
+
+  @ViewBuilder
+  private var standardButtonView: some View {
+    let tint = resolvedTintColor()
+    let styledLabel = config.contentInsets != nil
+      ? AnyView(buttonLabel.padding(resolvedPadding()))
+      : AnyView(buttonLabel)
+    Group {
+      if effectiveButtonStyle == "plain" {
+        Button(action: handlePress) { styledLabel }
+          .buttonStyle(.plain)
+      } else if effectiveButtonStyle == "gray" {
+        Button(action: handlePress) { styledLabel }
+          .buttonStyle(.bordered)
+          .tint(Color(.systemGray))
+      } else if effectiveButtonStyle == "filled" || effectiveButtonStyle == "borderedProminent" {
+        Button(action: handlePress) { styledLabel }
+          .buttonStyle(.borderedProminent)
+          .tint(tint)
+      } else {
+        Button(action: handlePress) { styledLabel }
+          .buttonStyle(.bordered)
+          .tint(tint)
+      }
+    }
+    .disabled(!isEffectivelyEnabled)
+    .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
+    .clipShape(resolvedShape())
   }
 
   // MARK: - Font resolution
@@ -138,11 +195,21 @@ struct LiquidGlassButtonGroupItemView: View {
     if let r = config.borderRadius {
       return AnyShape(RoundedRectangle(cornerRadius: r))
     }
+    if config.iconOnly {
+      return AnyShape(Circle())
+    }
     return AnyShape(Capsule())
   }
 
   private func resolvedFrameHeight() -> CGFloat? {
     config.height > 0 ? config.height : nil
+  }
+
+  private func resolvedFrameWidth() -> CGFloat? {
+    if config.iconOnly {
+      return config.width ?? config.height
+    }
+    return config.width
   }
 
   private func resolvedPadding() -> EdgeInsets {
@@ -174,12 +241,23 @@ struct LiquidGlassButtonGroupItemView: View {
 
   // MARK: - Helpers
 
+  private func resolvedTintColor() -> Color? {
+    if let c = config.tint { return Color(uiColor: c) }
+    if let c = config.foregroundColor { return Color(uiColor: c) }
+    return nil
+  }
+
+  private var isGlassStyle: Bool {
+    effectiveButtonStyle == "glass" || effectiveButtonStyle == "prominentGlass"
+      || effectiveButtonStyle == "automatic"
+  }
+
   private var accessibilityLabel: String {
     config.title ?? config.sfSymbolName ?? "Button"
   }
 
   private func handlePress() {
-    guard config.enabled else { return }
+    guard isEffectivelyEnabled else { return }
     onPressed()
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:native_liquid_glass/native_liquid_glass.dart';
 
 import 'pages/demo_catalog_page.dart';
+import 'pages/liquid_glass_sheet_preview_page.dart';
 
 class LiquidGlassDemoApp extends StatefulWidget {
   const LiquidGlassDemoApp({super.key});
@@ -14,11 +17,21 @@ class _LiquidGlassDemoAppState extends State<LiquidGlassDemoApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [LiquidGlassNavigatorObserver()],
       themeMode: _isDarkTheme ? ThemeMode.dark : ThemeMode.light,
-      theme: ThemeData(brightness: Brightness.light),
+      theme: ThemeData(
+        brightness: Brightness.light,
+        
+      ),
       darkTheme: ThemeData(brightness: Brightness.dark),
+      getPages: [
+        GetPage(
+          name: LiquidGlassSheetPreviewPage.flutterSheetRoute,
+          page: () => const FlutterSheetRoutePage(),
+        ),
+      ],
       home: DemoCatalogPage(
         onThemeChanged: (value) {
           setState(() {

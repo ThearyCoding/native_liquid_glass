@@ -9,6 +9,7 @@ final class LiquidGlassPresenter: NSObject {
   private let methodChannel: FlutterMethodChannel
   private var presentedPopovers: [Int: UIViewController] = [:]
   private var presentedSheets: [Int: UIViewController] = [:]
+  private var sheetEngines: [Int: FlutterEngine] = [:]
 
   init(messenger: FlutterBinaryMessenger, hostViewController: UIViewController?) {
     self.messenger = messenger
@@ -46,6 +47,8 @@ final class LiquidGlassPresenter: NSObject {
       switch call.method {
       case "showSheet":
         self.handleShowSheet(call: call, result: result)
+      case "showFlutterSheet":
+        self.handleShowFlutterSheet(call: call, result: result)
       case "dismissSheet":
         self.handleDismissSheet(call: call, result: result)
       case "showAlert":
@@ -129,6 +132,62 @@ final class LiquidGlassPresenter: NSObject {
     }
   }
 
+  private func createFlutterSheetEngine(id: Int, initialRoute route: String) -> FlutterEngine {
+    let project = FlutterDartProject()
+    let engine = FlutterEngine(name: "liquid-glass-sheet-\(id)", project: project)
+    engine.run(withEntrypoint: nil, initialRoute: route)
+
+    if let engineRegistrar = engine.registrar(forPlugin: "NativeLiquidGlassPlugin") {
+      NativeLiquidGlassPlugin.register(with: engineRegistrar)
+    }
+
+    return engine
+  }
+
+  private func handleShowFlutterSheet(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+      let id = (args["id"] as? NSNumber)?.intValue,
+      let route = args["route"] as? String,
+      let host = findHostVC()
+    else {
+      result(FlutterError(code: "NO_HOST", message: "No host view controller or route", details: nil))
+      return
+    }
+
+    let detentsRaw = args["detents"] as? [String] ?? ["medium", "large"]
+    let prefersGrabberVisible = (args["prefersGrabberVisible"] as? Bool) ?? true
+    let isModal = (args["isModal"] as? Bool) ?? false
+
+    let flutterEngine = createFlutterSheetEngine(id: id, initialRoute: route)
+    let flutterVC = FlutterViewController(
+      engine: flutterEngine,
+      nibName: nil,
+      bundle: nil
+    )
+    flutterVC.view.backgroundColor = .systemBackground
+    flutterVC.modalPresentationStyle = .pageSheet
+    flutterVC.isModalInPresentation = isModal
+
+    if #available(iOS 15.0, *), let sheet = flutterVC.sheetPresentationController {
+      var detents: [UISheetPresentationController.Detent] = []
+      for d in detentsRaw {
+        switch d {
+        case "medium": detents.append(.medium())
+        case "large": detents.append(.large())
+        default: detents.append(.medium())
+        }
+      }
+      sheet.detents = detents
+      sheet.prefersGrabberVisible = prefersGrabberVisible
+    }
+
+    presentedSheets[id] = flutterVC
+    sheetEngines[id] = flutterEngine
+    host.present(flutterVC, animated: true) {
+      result(nil)
+    }
+  }
+
   private func handleDismissSheet(call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard let args = call.arguments as? [String: Any],
       let id = (args["id"] as? NSNumber)?.intValue,
@@ -140,6 +199,9 @@ final class LiquidGlassPresenter: NSObject {
 
     vc.dismiss(animated: true) { [weak self] in
       self?.presentedSheets.removeValue(forKey: id)
+      if let engine = self?.sheetEngines.removeValue(forKey: id) {
+        engine.destroyContext()
+      }
       self?.methodChannel.invokeMethod("sheetDismissed", arguments: ["id": id])
       result(nil)
     }
