@@ -195,7 +195,14 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
   bool _payloadsResolved = false;
   int _hotReloadEpoch = 0;
   int _payloadsGeneration = 0;
-  double? _nativeHeight;
+  /// Natural size of the native buttons, reported by the platform view.
+  /// Null until the first native layout.
+  Size? _nativeSize;
+
+  /// Version of [_nativeSize]. Native pushes sizes as they change and also
+  /// answers `getIntrinsicSize`; the two can arrive out of order, so an older
+  /// version is ignored.
+  int _nativeSizeVersion = -1;
   int? _lastButtonsHash;
   int _iconSignature = 0;
   Map<String, Object?>? _cachedCreationParams;
@@ -233,7 +240,8 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
     if (mounted) {
       setState(() {
         _hotReloadEpoch++;
-        _nativeHeight = null;
+        _nativeSize = null;
+        _nativeSizeVersion = -1;
         _lastButtonsHash = null;
         _cachedCreationParams = null;
         _creationParamsCacheKey = null;
@@ -278,9 +286,9 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
 
     final hash = _computeButtonsHash();
     if (_lastButtonsHash != hash) {
+      // Native pushes `contentSizeChanged` once the new layout is applied.
       await ch.invokeMethod('updateButtons', _creationParamsCached());
       _lastButtonsHash = hash;
-      _requestIntrinsicSize();
     }
   }
 
@@ -341,6 +349,10 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
   }
 
   Future<void> _handleNativeMethodCall(MethodCall call) async {
+    if (call.method == 'contentSizeChanged') {
+      _applyNativeSize(call.arguments as Map<Object?, Object?>?);
+      return;
+    }
     if (call.method == 'onButtonPressed') {
       final index = call.arguments as int?;
       if (index != null && index >= 0 && index < widget.buttons.length) {
@@ -376,10 +388,21 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
     final ch = _nativeChannel;
     if (ch == null || !mounted) return;
     try {
-      final size = await ch.invokeMethod<Map<Object?, Object?>>('getIntrinsicSize');
-      final h = (size?['height'] as num?)?.toDouble();
-      if (mounted && h != null && h > 0) setState(() => _nativeHeight = h);
+      _applyNativeSize(
+        await ch.invokeMethod<Map<Object?, Object?>>('getIntrinsicSize'),
+      );
     } catch (_) {}
+  }
+
+  void _applyNativeSize(Map<Object?, Object?>? size) {
+    final w = (size?['width'] as num?)?.toDouble();
+    final h = (size?['height'] as num?)?.toDouble();
+    final version = (size?['version'] as num?)?.toInt() ?? 0;
+    if (!mounted || w == null || h == null || w <= 0 || h <= 0) return;
+    if (version < _nativeSizeVersion) return;
+    _nativeSizeVersion = version;
+    final next = Size(w, h);
+    if (next != _nativeSize) setState(() => _nativeSize = next);
   }
 
   List<Map<String, Object?>> _buildButtonParams() {
@@ -430,17 +453,36 @@ class _LiquidGlassButtonGroupState extends State<LiquidGlassButtonGroup> with Li
     };
   }
 
+  /// Typical native glass button extent, used until native reports the
+  /// group's real size.
+  static const double _estimatedButtonExtent = 50;
+
+  Size _estimatedSize() {
+    final count = widget.buttons.length;
+    final along = count * _estimatedButtonExtent + (count - 1) * widget.spacing;
+    return widget.axis == Axis.horizontal
+        ? Size(along, _estimatedButtonExtent)
+        : Size(_estimatedButtonExtent, along);
+  }
+
   @override
   Widget build(BuildContext context) {
     final payloadReady = !_needsPayloads || _payloadsResolved;
 
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       if (!payloadReady) {
         return const SizedBox.shrink();
       }
 
+      // Sized to the buttons' natural size as laid out natively, so Flutter's
+      // layout (Align, Row, Column, ListTile, slivers...) positions the group
+      // exactly like any other widget. Until the first native layout reports
+      // it, use an estimate rather than expanding to the available width,
+      // which would e.g. consume a whole ListTile's trailing slot.
+      final size = _nativeSize ?? _estimatedSize();
       return SizedBox(
-        height: _nativeHeight ?? 56,
+        width: size.width,
+        height: size.height,
         child: UiKitView(
           viewType: 'liquid-glass-button-group-view',
           creationParams: _creationParamsCached(),

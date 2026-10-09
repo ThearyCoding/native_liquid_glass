@@ -212,7 +212,7 @@ class _LiquidGlassNavigationBarState extends State<LiquidGlassNavigationBar> wit
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       return SizedBox(
         height: _height,
         child: UiKitView(

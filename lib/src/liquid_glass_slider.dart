@@ -203,7 +203,7 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider> with LiquidGlassR
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       return SizedBox(
         height: widget.height,
         child: UiKitView(

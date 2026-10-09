@@ -10,6 +10,9 @@ struct LiquidGlassButtonConfig {
   let assetIconPng: Data?
   let width: CGFloat?
   let height: CGFloat
+  /// Text button with no explicit height: lay out at its natural height
+  /// (Flutter then sizes itself to match) instead of a fixed `height`.
+  let fitsContentHeight: Bool
   let enabled: Bool
   let iconOnly: Bool
   let iconSize: CGFloat
@@ -123,6 +126,7 @@ struct LiquidGlassButtonConfig {
     assetIconPng = other.assetIconPng
     width = other.width
     height = other.height
+    fitsContentHeight = other.fitsContentHeight
     self.enabled = enabled
     iconOnly = other.iconOnly
     iconSize = other.iconSize
@@ -176,8 +180,10 @@ struct LiquidGlassButtonConfig {
 
     if let heightValue = (args?["height"] as? NSNumber)?.doubleValue, heightValue > 0 {
       height = CGFloat(max(32.0, heightValue))
+      fitsContentHeight = false
     } else {
       height = 50
+      fitsContentHeight = (args?["fitContent"] as? Bool) ?? false
     }
 
     enabled = (args?["enabled"] as? Bool) ?? true

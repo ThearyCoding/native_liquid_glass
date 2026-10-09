@@ -12,10 +12,12 @@ import 'liquid_glass_container_preview_page.dart';
 import 'liquid_glass_date_picker_preview_page.dart';
 import 'liquid_glass_menu_preview_page.dart';
 import 'liquid_glass_navigation_bar_preview_page.dart';
+import 'liquid_glass_otp_preview_page.dart';
 import 'liquid_glass_popover_preview_page.dart';
 import 'liquid_glass_progress_view_preview_page.dart';
 import 'liquid_glass_search_bar_preview_page.dart';
 import 'liquid_glass_search_scaffold_preview_page.dart';
+import 'liquid_glass_scrolling_preview_page.dart';
 import 'liquid_glass_segmented_control_preview_page.dart';
 import 'liquid_glass_sheet_preview_page.dart';
 import 'liquid_glass_slider_preview_page.dart';
@@ -180,9 +182,27 @@ ListTile(
             },
           ),
           ListTile(
+            leading: const Icon(Icons.pin_rounded),
+            title: const Text('OTP preview'),
+            subtitle: const Text('One-time code: glass boxes and otp text field'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LiquidGlassOtpPreviewPage(onThemeChanged: onThemeChanged)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.swap_vert_rounded),
+            title: const Text('Scrolling preview'),
+            subtitle: const Text('Native glass in ListView, CustomScrollView, GridView'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LiquidGlassScrollingPreviewPage(onThemeChanged: onThemeChanged)));
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.table_rows_rounded),
             title: const Text('LiquidGlassSheet preview'),
-            subtitle: const Text('Native UISheetPresentationController bottom sheet'),
+            subtitle: const Text('Flutter widget inside a native UISheetPresentationController'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LiquidGlassSheetPreviewPage(onThemeChanged: onThemeChanged)));

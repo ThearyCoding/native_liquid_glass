@@ -536,6 +536,11 @@ final class LiquidGlassTabBarPlatformView: NSObject, FlutterPlatformView {
   private weak var hostViewController: UIViewController?
   private var nativeTabBarControllerView: LiquidGlassNativeTabBarControllerView?
   private var suppressObserver: GlassSuppressObserver?
+  /// When true the tab bar stays visible and interactive, ignoring route and
+  /// popup suppression (`LiquidGlassTabBar.forceShow`).
+  private var forceShow = false
+  /// Last suppression requested by Flutter, re-applied when `forceShow` turns off.
+  private var requestedSuppression = false
 
   init(
     frame: CGRect,
@@ -553,6 +558,9 @@ final class LiquidGlassTabBarPlatformView: NSObject, FlutterPlatformView {
 
     super.init()
     suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
+    if let initialForceShow = (args as? [String: Any])?["forceShow"] as? Bool {
+      applyForceShow(initialForceShow)
+    }
     setupView(arguments: args as? [String: Any])
     setupMethodChannelHandler()
   }
@@ -629,11 +637,25 @@ final class LiquidGlassTabBarPlatformView: NSObject, FlutterPlatformView {
 
     case "setSuppressed":
       let suppressed = (call.arguments as? [String: Any])?["suppressed"] as? Bool ?? false
-      suppressObserver?.setRouteSuppressed(suppressed)
+      requestedSuppression = suppressed
+      // forceShow keeps the tab bar visible and interactive regardless.
+      suppressObserver?.setRouteSuppressed(suppressed && !forceShow)
       result(nil)
+
+    case "setForceShow":
+      let force = (call.arguments as? [String: Any])?["forceShow"] as? Bool ?? false
+      applyForceShow(force)
+      result(nil)
+
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  private func applyForceShow(_ force: Bool) {
+    forceShow = force
+    suppressObserver?.setForceShow(force)
+    suppressObserver?.setRouteSuppressed(requestedSuppression && !force)
   }
 
   private func parseSelectedIndex(from arguments: Any?) -> Int? {

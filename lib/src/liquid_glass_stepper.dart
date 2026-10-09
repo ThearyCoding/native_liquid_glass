@@ -190,7 +190,7 @@ class _LiquidGlassStepperState extends State<LiquidGlassStepper> with LiquidGlas
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       return SizedBox(
         width: widget.width,
         height: widget.height,

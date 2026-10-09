@@ -28,7 +28,7 @@ class LiquidGlassPopover {
   }) {
     final handle = LiquidGlassPopoverHandle._();
 
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       final id = _nextId++;
       handle._popoverId = id;
 

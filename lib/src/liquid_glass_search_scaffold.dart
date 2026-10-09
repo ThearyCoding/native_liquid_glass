@@ -349,7 +349,7 @@ class _LiquidGlassSearchScaffoldState extends State<LiquidGlassSearchScaffold> w
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       if (!_payloadsResolved || _nativeTabs == null) {
         return const SizedBox.shrink();
       }

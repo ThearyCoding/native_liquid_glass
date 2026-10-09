@@ -45,254 +45,242 @@ class _LiquidGlassButtonGroupPreviewPageState
         title: const Text('LiquidGlassButtonGroup preview'),
         actions: [ThemeModeActionButton(onThemeChanged: widget.onThemeChanged)],
       ),
+      // One scrolling flow: the preview takes exactly the group's size, so
+      // switching to vertical pushes the settings card down instead of the
+      // native buttons overlapping it.
       body: SafeArea(
-        child: Padding(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Last pressed: $_lastPressed',
-                        style: Theme.of(context).textTheme.titleLarge,
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Last pressed: $_lastPressed',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 24),
+                  LiquidGlassButtonGroup(
+                    axis: _axis,
+                    spacing: _spacing,
+                    buttons: [
+                      LiquidGlassButtonData(
+                        icon: const NativeLiquidGlassIcon.sfSymbol(
+                          'square.and.arrow.up',
+                        ),
+                        foregroundColor: _useForegroundColor
+                            ? colorScheme.primary
+                            : null,
+                        tint: _useGlassTint
+                            ? colorScheme.secondaryContainer
+                            : null,
+                        iconSize: _iconSize,
+                        imagePlacement: _imagePlacement,
+                        imagePadding: _imagePadding,
+                        borderRadius: _useBorderRadius ? 12 : null,
+                        padding: _useCustomPadding
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              )
+                            : null,
+                        maxLines: _maxLines,
+                        onPressed: () => setState(() => _lastPressed = 'Share'),
                       ),
-                      const SizedBox(height: 24),
-                      LiquidGlassButtonGroup(
-                        axis: _axis,
-                        spacing: _spacing,
-                        buttons: [
-                          LiquidGlassButtonData(
-                            icon: const NativeLiquidGlassIcon.sfSymbol(
-                              'square.and.arrow.up',
-                            ),
-                            foregroundColor: _useForegroundColor
-                                ? colorScheme.primary
-                                : null,
-                            tint: _useGlassTint
-                                ? colorScheme.secondaryContainer
-                                : null,
-                            iconSize: _iconSize,
-                            imagePlacement: _imagePlacement,
-                            imagePadding: _imagePadding,
-                            borderRadius: _useBorderRadius ? 12 : null,
-                            padding: _useCustomPadding
-                                ? const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
-                                  )
-                                : null,
-                            maxLines: _maxLines,
-                            onPressed: () =>
-                                setState(() => _lastPressed = 'Share'),
-                          ),
-                          LiquidGlassButtonData(
-                            icon: const NativeLiquidGlassIcon.sfSymbol(
-                              'pencil',
-                            ),
-                            labelTextStyle: _useLabelTextStyle
-                                ? const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.3,
-                                  )
-                                : null,
-                            iconSize: _iconSize,
-                            imagePlacement: _imagePlacement,
-                            imagePadding: _imagePadding,
-                            borderRadius: _useBorderRadius ? 12 : null,
-                            padding: _useCustomPadding
-                                ? const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
-                                  )
-                                : null,
-                            onPressed: () =>
-                                setState(() => _lastPressed = 'Edit'),
-                          ),
-                          LiquidGlassButtonData(
-                            icon: const NativeLiquidGlassIcon.sfSymbol('trash'),
-                            iconColor: Colors.red,
-                            iconSize: _iconSize,
-                            enabled: !_disableDelete,
-                            borderRadius: _useBorderRadius ? 12 : null,
-                            onPressed: () =>
-                                setState(() => _lastPressed = 'Delete'),
-                          ),
-                        ],
+                      LiquidGlassButtonData(
+                        icon: const NativeLiquidGlassIcon.sfSymbol('pencil'),
+                        labelTextStyle: _useLabelTextStyle
+                            ? const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              )
+                            : null,
+                        iconSize: _iconSize,
+                        imagePlacement: _imagePlacement,
+                        imagePadding: _imagePadding,
+                        borderRadius: _useBorderRadius ? 12 : null,
+                        padding: _useCustomPadding
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              )
+                            : null,
+                        onPressed: () => setState(() => _lastPressed = 'Edit'),
+                      ),
+                      LiquidGlassButtonData(
+                        icon: const NativeLiquidGlassIcon.sfSymbol('trash'),
+                        iconColor: Colors.red,
+                        iconSize: _iconSize,
+                        enabled: !_disableDelete,
+                        borderRadius: _useBorderRadius ? 12 : null,
+                        onPressed: () =>
+                            setState(() => _lastPressed = 'Delete'),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
-
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Axis',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
+            ),
+            const SizedBox(height: 24),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Axis',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<Axis>(
+                      segments: const [
+                        ButtonSegment(
+                          value: Axis.horizontal,
+                          label: Text('Horizontal'),
                         ),
-                        const SizedBox(height: 8),
-                        SegmentedButton<Axis>(
-                          segments: const [
-                            ButtonSegment(
-                              value: Axis.horizontal,
-                              label: Text('Horizontal'),
-                            ),
-                            ButtonSegment(
-                              value: Axis.vertical,
-                              label: Text('Vertical'),
-                            ),
-                          ],
-                          selected: {_axis},
-                          onSelectionChanged: (selection) =>
-                              setState(() => _axis = selection.first),
-                        ),
-
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Image placement',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SegmentedButton<LiquidGlassImagePlacement>(
-                          segments: const [
-                            ButtonSegment(
-                              value: LiquidGlassImagePlacement.leading,
-                              label: Text('Lead'),
-                            ),
-                            ButtonSegment(
-                              value: LiquidGlassImagePlacement.trailing,
-                              label: Text('Trail'),
-                            ),
-                            ButtonSegment(
-                              value: LiquidGlassImagePlacement.top,
-                              label: Text('Top'),
-                            ),
-                            ButtonSegment(
-                              value: LiquidGlassImagePlacement.bottom,
-                              label: Text('Btm'),
-                            ),
-                          ],
-                          selected: {_imagePlacement},
-                          onSelectionChanged: (sel) =>
-                              setState(() => _imagePlacement = sel.first),
-                        ),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Foreground color (Share)'),
-                          value: _useForegroundColor,
-                          onChanged: (v) =>
-                              setState(() => _useForegroundColor = v),
-                        ),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Custom label text style (Edit)'),
-                          value: _useLabelTextStyle,
-                          onChanged: (v) =>
-                              setState(() => _useLabelTextStyle = v),
-                        ),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Glass tint (Share)'),
-                          value: _useGlassTint,
-                          onChanged: (v) => setState(() => _useGlassTint = v),
-                        ),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Custom padding'),
-                          value: _useCustomPadding,
-                          onChanged: (v) =>
-                              setState(() => _useCustomPadding = v),
-                        ),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Border radius (rounded rect)'),
-                          value: _useBorderRadius,
-                          onChanged: (v) =>
-                              setState(() => _useBorderRadius = v),
-                        ),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Disable Delete button'),
-                          value: _disableDelete,
-                          onChanged: (v) => setState(() => _disableDelete = v),
-                        ),
-                        Row(
-                          children: [
-                            const Text('Spacing'),
-                            Expanded(
-                              child: Slider.adaptive(
-                                min: 0,
-                                max: 24,
-                                divisions: 12,
-                                value: _spacing,
-                                label: _spacing.toStringAsFixed(0),
-                                onChanged: (value) =>
-                                    setState(() => _spacing = value),
-                              ),
-                            ),
-                            Text(_spacing.toStringAsFixed(0)),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            const Text('Icon sz'),
-                            Expanded(
-                              child: Slider.adaptive(
-                                min: 14,
-                                max: 28,
-                                divisions: 14,
-                                value: _iconSize,
-                                label: _iconSize.toStringAsFixed(0),
-                                onChanged: (value) =>
-                                    setState(() => _iconSize = value),
-                              ),
-                            ),
-                            Text(_iconSize.toStringAsFixed(0)),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            const Text('Img pad'),
-                            Expanded(
-                              child: Slider.adaptive(
-                                min: 0,
-                                max: 20,
-                                divisions: 20,
-                                value: _imagePadding,
-                                label: _imagePadding.toStringAsFixed(0),
-                                onChanged: (value) =>
-                                    setState(() => _imagePadding = value),
-                              ),
-                            ),
-                            Text(_imagePadding.toStringAsFixed(0)),
-                          ],
+                        ButtonSegment(
+                          value: Axis.vertical,
+                          label: Text('Vertical'),
                         ),
                       ],
+                      selected: {_axis},
+                      onSelectionChanged: (selection) =>
+                          setState(() => _axis = selection.first),
                     ),
-                  ),
+
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Image placement',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<LiquidGlassImagePlacement>(
+                      segments: const [
+                        ButtonSegment(
+                          value: LiquidGlassImagePlacement.leading,
+                          label: Text('Lead'),
+                        ),
+                        ButtonSegment(
+                          value: LiquidGlassImagePlacement.trailing,
+                          label: Text('Trail'),
+                        ),
+                        ButtonSegment(
+                          value: LiquidGlassImagePlacement.top,
+                          label: Text('Top'),
+                        ),
+                        ButtonSegment(
+                          value: LiquidGlassImagePlacement.bottom,
+                          label: Text('Btm'),
+                        ),
+                      ],
+                      selected: {_imagePlacement},
+                      onSelectionChanged: (sel) =>
+                          setState(() => _imagePlacement = sel.first),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Foreground color (Share)'),
+                      value: _useForegroundColor,
+                      onChanged: (v) => setState(() => _useForegroundColor = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Custom label text style (Edit)'),
+                      value: _useLabelTextStyle,
+                      onChanged: (v) => setState(() => _useLabelTextStyle = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Glass tint (Share)'),
+                      value: _useGlassTint,
+                      onChanged: (v) => setState(() => _useGlassTint = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Custom padding'),
+                      value: _useCustomPadding,
+                      onChanged: (v) => setState(() => _useCustomPadding = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Border radius (rounded rect)'),
+                      value: _useBorderRadius,
+                      onChanged: (v) => setState(() => _useBorderRadius = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Disable Delete button'),
+                      value: _disableDelete,
+                      onChanged: (v) => setState(() => _disableDelete = v),
+                    ),
+                    Row(
+                      children: [
+                        const Text('Spacing'),
+                        Expanded(
+                          child: Slider.adaptive(
+                            min: 0,
+                            max: 24,
+                            divisions: 12,
+                            value: _spacing,
+                            label: _spacing.toStringAsFixed(0),
+                            onChanged: (value) =>
+                                setState(() => _spacing = value),
+                          ),
+                        ),
+                        Text(_spacing.toStringAsFixed(0)),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Text('Icon sz'),
+                        Expanded(
+                          child: Slider.adaptive(
+                            min: 14,
+                            max: 28,
+                            divisions: 14,
+                            value: _iconSize,
+                            label: _iconSize.toStringAsFixed(0),
+                            onChanged: (value) =>
+                                setState(() => _iconSize = value),
+                          ),
+                        ),
+                        Text(_iconSize.toStringAsFixed(0)),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Text('Img pad'),
+                        Expanded(
+                          child: Slider.adaptive(
+                            min: 0,
+                            max: 20,
+                            divisions: 20,
+                            value: _imagePadding,
+                            label: _imagePadding.toStringAsFixed(0),
+                            onChanged: (value) =>
+                                setState(() => _imagePadding = value),
+                          ),
+                        ),
+                        Text(_imagePadding.toStringAsFixed(0)),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

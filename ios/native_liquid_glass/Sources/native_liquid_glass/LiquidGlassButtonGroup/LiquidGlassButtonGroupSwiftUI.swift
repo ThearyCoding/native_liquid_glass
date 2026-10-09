@@ -4,7 +4,7 @@ import UIKit
 
 // MARK: - Data model
 
-@available(iOS 26.0, *)
+@available(iOS 16.0, *)
 struct LiquidGlassButtonData: Identifiable {
   let id = UUID()
   let buttonConfig: LiquidGlassButtonConfig
@@ -13,7 +13,7 @@ struct LiquidGlassButtonData: Identifiable {
 
 // MARK: - View model
 
-@available(iOS 26.0, *)
+@available(iOS 16.0, *)
 class LiquidGlassButtonGroupViewModel: ObservableObject {
   @Published var buttons: [LiquidGlassButtonData] = []
   @Published var axis: Axis = .horizontal
@@ -29,9 +29,12 @@ class LiquidGlassButtonGroupViewModel: ObservableObject {
 
 // MARK: - SwiftUI group view
 
-@available(iOS 26.0, *)
+@available(iOS 16.0, *)
 struct LiquidGlassButtonGroupSwiftUI: View {
   @ObservedObject var viewModel: LiquidGlassButtonGroupViewModel
+  /// Called with the group's natural size whenever it changes, so Flutter can
+  /// size the platform view to exactly fit the buttons.
+  var onContentSizeChange: ((CGSize) -> Void)?
   @Namespace private var namespace
 
   /// For horizontal groups with multiple buttons, use a higher effective spacing
@@ -44,38 +47,48 @@ struct LiquidGlassButtonGroupSwiftUI: View {
   }
 
   var body: some View {
-    GlassEffectContainer(spacing: effectiveSpacingForGlass) {
-      if viewModel.axis == .horizontal {
-        HStack(alignment: .center, spacing: viewModel.spacing) {
-          ForEach(Array(viewModel.buttons.enumerated()), id: \.offset) { _, button in
-            LiquidGlassButtonGroupItemView(
-              config: button.buttonConfig,
-              onPressed: button.onPressed,
-              isRouteSuppressed: viewModel.isRouteSuppressed,
-              isPopupRouteSuppressed: viewModel.isPopupRouteSuppressed,
-              namespace: namespace
-            )
-            .fixedSize(horizontal: true, vertical: false)
-          }
-        }
-        .frame(minHeight: 0, maxHeight: .infinity, alignment: .center)
+    Group {
+      if #available(iOS 26.0, *) {
+        GlassEffectContainer(spacing: effectiveSpacingForGlass) { measuredStack }
       } else {
-        VStack(alignment: .center, spacing: viewModel.spacing) {
-          ForEach(Array(viewModel.buttons.enumerated()), id: \.offset) { _, button in
-            LiquidGlassButtonGroupItemView(
-              config: button.buttonConfig,
-              onPressed: button.onPressed,
-              isRouteSuppressed: viewModel.isRouteSuppressed,
-              isPopupRouteSuppressed: viewModel.isPopupRouteSuppressed,
-              namespace: namespace
-            )
-            .fixedSize(horizontal: true, vertical: false)
-          }
-        }
-        .frame(minHeight: 0, maxHeight: .infinity, alignment: .center)
+        measuredStack
       }
     }
-    .frame(minHeight: 0, maxHeight: .infinity, alignment: .center)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     .ignoresSafeArea()
+  }
+
+  /// Lays the buttons out at their natural size, independent of the platform
+  /// view's current frame, and reports that size to Flutter.
+  private var measuredStack: some View {
+    stack
+      .fixedSize()
+      .onGeometryChange(for: CGSize.self) { proxy in
+        proxy.size
+      } action: { size in
+        onContentSizeChange?(size)
+      }
+  }
+
+  @ViewBuilder
+  private var stack: some View {
+    if viewModel.axis == .horizontal {
+      HStack(alignment: .center, spacing: viewModel.spacing) { items }
+    } else {
+      VStack(alignment: .center, spacing: viewModel.spacing) { items }
+    }
+  }
+
+  private var items: some View {
+    ForEach(Array(viewModel.buttons.enumerated()), id: \.offset) { _, button in
+      LiquidGlassButtonGroupItemView(
+        config: button.buttonConfig,
+        onPressed: button.onPressed,
+        isRouteSuppressed: viewModel.isRouteSuppressed,
+        isPopupRouteSuppressed: viewModel.isPopupRouteSuppressed,
+        namespace: namespace
+      )
+      .fixedSize()
+    }
   }
 }

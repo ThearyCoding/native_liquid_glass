@@ -151,6 +151,8 @@ final class LiquidGlassSearchBarPlatformView: NSObject, FlutterPlatformView {
     )
 
     let hc = UIHostingController(rootView: swiftUIView)
+
+    hc.configureForFlutterPlatformView()
     hc.view.backgroundColor = .clear
     hc.view.translatesAutoresizingMaskIntoConstraints = false
 

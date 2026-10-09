@@ -235,7 +235,7 @@ class _LiquidGlassMenuState extends State<LiquidGlassMenu> with LiquidGlassRoute
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       final isIconOnly = widget.label == null;
       final width = isIconOnly ? widget.height : (_nativeWidth ?? _estimateWidth());
       return SizedBox(

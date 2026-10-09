@@ -9,7 +9,7 @@ final class LiquidGlassContainerPlatformView: NSObject, FlutterPlatformView {
   private let containerView: UIView
   private let methodChannel: FlutterMethodChannel
   private var hostingController: UIHostingController<AnyView>?
-  private var viewModel: AnyObject?  // type-erased; actual type is LiquidGlassContainerViewModel (iOS 26+)
+  private var viewModel: AnyObject?  // type-erased; actual type is LiquidGlassContainerViewModel (iOS 16+)
   private var suppressObserver: GlassSuppressObserver?
 
   init(
@@ -40,7 +40,7 @@ final class LiquidGlassContainerPlatformView: NSObject, FlutterPlatformView {
   // MARK: - Setup (called once)
 
   private func setupGlassView(args: [String: Any]?) {
-    if #available(iOS 26.0, *) {
+    if #available(iOS 16.0, *) {
       let vm = LiquidGlassContainerViewModel()
       vm.update(from: args, animated: false)
       self.viewModel = vm
@@ -48,6 +48,8 @@ final class LiquidGlassContainerPlatformView: NSObject, FlutterPlatformView {
       let swiftUIView = LiquidGlassContainerSwiftUIView(viewModel: vm)
 
       let hc = UIHostingController(rootView: AnyView(swiftUIView))
+
+      hc.configureForFlutterPlatformView()
       hc.view.backgroundColor = .clear
       hc.view.translatesAutoresizingMaskIntoConstraints = false
       // The glass material's drop shadow can extend slightly past the
@@ -65,13 +67,12 @@ final class LiquidGlassContainerPlatformView: NSObject, FlutterPlatformView {
 
       hostingController = hc
     }
-    // Pre-iOS 26: transparent view (no glass effect)
   }
 
   // MARK: - Update (called on config changes)
 
   private func updateGlassEffect(args: [String: Any]?, animated: Bool) {
-    if #available(iOS 26.0, *) {
+    if #available(iOS 16.0, *) {
       if let vm = viewModel as? LiquidGlassContainerViewModel {
         vm.update(from: args, animated: animated)
       }
@@ -106,7 +107,7 @@ final class LiquidGlassContainerPlatformView: NSObject, FlutterPlatformView {
         // Flutter does zero per-frame work and the platform view
         // never gets a per-frame transform.
         let pressed = (call.arguments as? [String: Any])?["pressed"] as? Bool ?? false
-        if #available(iOS 26.0, *) {
+        if #available(iOS 16.0, *) {
           (self.viewModel as? LiquidGlassContainerViewModel)?.setPressed(pressed)
         }
         result(nil)

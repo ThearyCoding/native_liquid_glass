@@ -82,6 +82,7 @@ final class LiquidGlassSliderPlatformView: NSObject, FlutterPlatformView {
 
     let swiftUIView = LiquidGlassSliderSwiftUIView(viewModel: vm)
     let hc = UIHostingController(rootView: swiftUIView)
+    hc.configureForFlutterPlatformView()
     hc.view.backgroundColor = .clear
     hc.view.translatesAutoresizingMaskIntoConstraints = false
 

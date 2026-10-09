@@ -127,7 +127,7 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle> with LiquidGlassR
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       return SizedBox(
         width: widget.height * 51.0 / 31.0,
         height: widget.height,

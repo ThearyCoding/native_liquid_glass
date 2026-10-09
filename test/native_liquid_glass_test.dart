@@ -35,6 +35,28 @@ void main() {
     expect(isQualified, isFalse);
   });
 
+  group('NativeLiquidGlassUtils.usesNativeViews', () {
+    tearDown(() {
+      NativeLiquidGlassUtils.debugUsesNativeViewsOverride = null;
+      NativeLiquidGlassUtils.debugSupportsLiquidGlassOverride = null;
+    });
+
+    test('is false on the non-iOS test runtime', () {
+      expect(NativeLiquidGlassUtils.usesNativeViews, isFalse);
+    });
+
+    test('starts at iOS 16, below Liquid Glass', () {
+      expect(NativeLiquidGlassUtils.minimumNativeIOSVersion, 16);
+    });
+
+    test('follows the Liquid Glass override, and its own override wins', () {
+      NativeLiquidGlassUtils.debugSupportsLiquidGlassOverride = true;
+      expect(NativeLiquidGlassUtils.usesNativeViews, isTrue);
+      NativeLiquidGlassUtils.debugUsesNativeViewsOverride = false;
+      expect(NativeLiquidGlassUtils.usesNativeViews, isFalse);
+    });
+  });
+
   testWidgets('tab bar remains empty with showLabels false on non-iOS', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -283,5 +305,143 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.favorite_border_rounded));
     await tester.pumpAndSettle();
+  });
+
+  group('LiquidGlassTextField Flutter TextField parity (fallback)', () {
+    testWidgets('external controller drives the field and typing updates the controller', (
+      tester,
+    ) async {
+      final controller = TextEditingController(text: 'hello');
+      addTearDown(controller.dispose);
+      var lastChanged = '';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: LiquidGlassTextField(
+              controller: controller,
+              onChanged: (value) => lastChanged = value,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('hello'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'hello world');
+      await tester.pump();
+
+      expect(controller.text, 'hello world');
+      expect(lastChanged, 'hello world');
+
+      controller.text = 'set externally';
+      await tester.pump();
+      expect(find.text('set externally'), findsOneWidget);
+    });
+
+    testWidgets('external focusNode drives native focus state', (tester) async {
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: LiquidGlassTextField(focusNode: focusNode)),
+        ),
+      );
+
+      expect(focusNode.hasFocus, isFalse);
+
+      focusNode.requestFocus();
+      await tester.pumpAndSettle();
+      expect(focusNode.hasFocus, isTrue);
+
+      focusNode.unfocus();
+      await tester.pumpAndSettle();
+      expect(focusNode.hasFocus, isFalse);
+    });
+
+    testWidgets('onSubmitted and onEditingComplete fire on submit', (tester) async {
+      String? submittedValue;
+      var editingCompleteCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: LiquidGlassTextField(
+              onSubmitted: (value) => submittedValue = value,
+              onEditingComplete: () => editingCompleteCount++,
+            ),
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), 'submit me');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(submittedValue, 'submit me');
+      expect(editingCompleteCount, 1);
+    });
+
+    testWidgets('textAlign, textCapitalization, autocorrect and cursorColor pass through', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: LiquidGlassTextField(
+              textAlign: TextAlign.center,
+              textCapitalization: TextCapitalization.words,
+              autocorrect: false,
+              enableSuggestions: false,
+              cursorColor: const Color(0xFF112233),
+            ),
+          ),
+        ),
+      );
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.textAlign, TextAlign.center);
+      expect(field.textCapitalization, TextCapitalization.words);
+      expect(field.autocorrect, isFalse);
+      expect(field.enableSuggestions, isFalse);
+      expect(field.cursorColor, const Color(0xFF112233));
+    });
+
+    testWidgets('swapping controller instance mid-lifetime updates displayed text', (
+      tester,
+    ) async {
+      final controllerA = TextEditingController(text: 'A');
+      final controllerB = TextEditingController(text: 'B');
+      addTearDown(controllerA.dispose);
+      addTearDown(controllerB.dispose);
+
+      var useA = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: [
+                  LiquidGlassTextField(controller: useA ? controllerA : controllerB),
+                  TextButton(
+                    onPressed: () => setState(() => useA = !useA),
+                    child: const Text('swap'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('A'), findsOneWidget);
+
+      await tester.tap(find.text('swap'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('A'), findsNothing);
+    });
   });
 }

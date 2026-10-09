@@ -3,7 +3,9 @@ import UIKit
 
 /// SwiftUI button view with full Liquid Glass support using glassEffect() modifier.
 /// Uses LiquidGlassButtonConfig for full feature parity with standalone buttons.
-@available(iOS 26.0, *)
+/// Before iOS 26 the glass styles keep the same shape and size with a plain
+/// system fill instead of glass.
+@available(iOS 16.0, *)
 struct LiquidGlassButtonGroupItemView: View {
   let config: LiquidGlassButtonConfig
   let onPressed: () -> Void
@@ -25,16 +27,19 @@ struct LiquidGlassButtonGroupItemView: View {
     Group {
       if isGlassStyle {
         Button(action: handlePress) {
-          buttonLabel
-            .padding(resolvedPadding())
-            .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
-            .contentShape(resolvedShape())
-            .glassEffect(resolvedGlass(), in: resolvedShape())
-            .applyLiquidGlassEffectModifiers(
-              unionId: config.glassEffectUnionId,
-              id: config.glassEffectId,
-              namespace: namespace
-            )
+          if #available(iOS 26.0, *) {
+            sizedLabel
+              .glassEffect(resolvedGlass(), in: resolvedShape())
+              .applyLiquidGlassEffectModifiers(
+                unionId: config.glassEffectUnionId,
+                id: config.glassEffectId,
+                namespace: namespace
+              )
+          } else {
+            sizedLabel
+              .background(resolvedShape().fill(plainFillColor))
+              .opacity(isEffectivelyEnabled ? 1 : 0.5)
+          }
         }
         .clipShape(resolvedShape())
         .disabled(!isEffectivelyEnabled)
@@ -49,32 +54,39 @@ struct LiquidGlassButtonGroupItemView: View {
     .accessibilityAddTraits(.isButton)
   }
 
+  private var sizedLabel: some View {
+    buttonLabel
+      .padding(resolvedPadding())
+      .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
+      .contentShape(resolvedShape())
+  }
+
   // MARK: - Label content
 
   @ViewBuilder
   private var buttonLabel: some View {
     if config.iconOnly {
       iconView
-        .foregroundColor(effectiveIconColor)
+        .foregroundColor(iconForeground)
     } else if config.imagePlacement == "trailing" {
       HStack(spacing: config.imagePadding) {
         textLabel
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
       }
     } else if config.imagePlacement == "top" {
       VStack(spacing: config.imagePadding) {
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
         textLabel
       }
     } else if config.imagePlacement == "bottom" {
       VStack(spacing: config.imagePadding) {
         textLabel
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
       }
     } else {
       // "leading" (default)
       HStack(spacing: config.imagePadding) {
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
         textLabel
       }
     }
@@ -102,7 +114,7 @@ struct LiquidGlassButtonGroupItemView: View {
       .multilineTextAlignment(.leading)
       .font(resolvedFont())
       .kerning(config.labelStyle?.letterSpacing ?? 0)
-      .foregroundColor(effectiveTextColor)
+      .foregroundColor(textForeground)
   }
 
   // MARK: - Color resolution
@@ -116,6 +128,24 @@ struct LiquidGlassButtonGroupItemView: View {
       return nil
     }
     return effectiveTextColor
+  }
+
+  /// Before iOS 26 the glass styles fall back to the plain fill's label
+  /// color when no color is set. (`nil` would reset the color to primary,
+  /// e.g. black on the prominent fill.)
+  private var usesPlainGlassFallback: Bool {
+    if #available(iOS 26.0, *) { return false }
+    return isGlassStyle
+  }
+
+  private var textForeground: Color? {
+    if let c = effectiveTextColor { return c }
+    return usesPlainGlassFallback ? plainForegroundColor : nil
+  }
+
+  private var iconForeground: Color? {
+    if let c = effectiveIconColor { return c }
+    return usesPlainGlassFallback ? plainForegroundColor : nil
   }
 
   private var effectiveTextColor: Color? {
@@ -226,8 +256,27 @@ struct LiquidGlassButtonGroupItemView: View {
     return EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
   }
 
+  // MARK: - Plain fill (before iOS 26)
+
+  private var isProminentStyle: Bool {
+    effectiveButtonStyle == "prominentGlass" || effectiveButtonStyle == "automatic"
+  }
+
+  /// `glass` → a light system fill (or the tint, lightly); `prominentGlass`
+  /// → the tint (or the accent color), like `borderedProminent`.
+  private var plainFillColor: Color {
+    let tint = config.tint.map { Color(uiColor: $0) }
+    if isProminentStyle { return tint ?? .accentColor }
+    return tint?.opacity(0.18) ?? Color(uiColor: .tertiarySystemFill)
+  }
+
+  private var plainForegroundColor: Color {
+    isProminentStyle ? .white : .primary
+  }
+
   // MARK: - Glass effect
 
+  @available(iOS 26.0, *)
   private func resolvedGlass() -> Glass {
     var glass = Glass.regular
     if config.interactive {
@@ -292,7 +341,7 @@ extension View {
 
 /// Custom button style that removes all highlights and press effects,
 /// letting the glass effect handle visual feedback.
-@available(iOS 26.0, *)
+@available(iOS 16.0, *)
 struct LiquidGlassNoHighlightButtonStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.label

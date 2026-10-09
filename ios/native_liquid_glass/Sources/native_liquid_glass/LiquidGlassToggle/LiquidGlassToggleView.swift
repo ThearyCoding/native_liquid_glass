@@ -72,6 +72,7 @@ final class LiquidGlassTogglePlatformView: NSObject, FlutterPlatformView {
 
     let swiftUIView = LiquidGlassToggleSwiftUIView(viewModel: vm)
     let hc = UIHostingController(rootView: swiftUIView)
+    hc.configureForFlutterPlatformView()
     hc.view.backgroundColor = .clear
     hc.view.translatesAutoresizingMaskIntoConstraints = false
 

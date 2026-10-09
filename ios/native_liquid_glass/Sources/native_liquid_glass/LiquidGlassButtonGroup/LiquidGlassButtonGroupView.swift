@@ -21,6 +21,11 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
   private var suppressObserver: GlassSuppressObserver?
   private var isRouteSuppressed = false
   private var isPopupRouteSuppressed = false
+  /// Natural size of the buttons as last laid out by SwiftUI (iOS 26+).
+  private var contentSize: CGSize?
+  /// Increments with every new `contentSize`. Sent with each size so Flutter
+  /// can drop a reply that arrives after a newer pushed size.
+  private var contentSizeVersion = 0
 
   init(
     frame: CGRect,
@@ -42,7 +47,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
 
     let isDark = (args?["isDark"] as? Bool) ?? false
 
-    if #available(iOS 26.0, *) {
+    if #available(iOS 16.0, *) {
       configureSwiftUI(args: args, isDark: isDark)
     } else {
       configureLegacyUIKit(args: args)
@@ -55,14 +60,17 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
       }
       switch call.method {
       case "getIntrinsicSize":
-        if #available(iOS 26.0, *) {
-          let hc = self.hostingController
-          hc?.view.setNeedsLayout()
-          hc?.view.layoutIfNeeded()
-          let size =
-            hc?.view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-            ?? CGSize(width: 200, height: 56)
-          result(["width": Double(size.width), "height": Double(size.height)])
+        if #available(iOS 16.0, *) {
+          if let size = self.contentSize {
+            result([
+              "width": Double(size.width),
+              "height": Double(size.height),
+              "version": self.contentSizeVersion,
+            ])
+          } else {
+            // Not laid out yet; `contentSizeChanged` follows once it is.
+            result(nil)
+          }
         } else {
           let sv = self.stackView
           sv?.setNeedsLayout()
@@ -74,7 +82,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
         }
       case "updateButtons":
         let updateArgs = call.arguments as? [String: Any]
-        if #available(iOS 26.0, *) {
+        if #available(iOS 16.0, *) {
           self.updateSwiftUIButtons(updateArgs)
         } else {
           self.stackView?.removeFromSuperview()
@@ -89,7 +97,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
         let reason = (call.arguments as? [String: Any])?["reason"] as? String
         self.isRouteSuppressed = suppressed
         self.isPopupRouteSuppressed = suppressed && reason == "popup"
-        if #available(iOS 26.0, *) {
+        if #available(iOS 16.0, *) {
           if let vm = self.viewModel as? LiquidGlassButtonGroupViewModel {
             vm.isRouteSuppressed = suppressed
             vm.isPopupRouteSuppressed = suppressed && reason == "popup"
@@ -124,9 +132,9 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     return mapped
   }
 
-  // MARK: - SwiftUI path (iOS 26+)
+  // MARK: - SwiftUI path (iOS 16+; Liquid Glass on iOS 26+)
 
-  @available(iOS 26.0, *)
+  @available(iOS 16.0, *)
   private func configureSwiftUI(args: [String: Any]?, isDark: Bool) {
     let vm = LiquidGlassButtonGroupViewModel()
     self.viewModel = vm
@@ -148,8 +156,11 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
       vm.spacingForGlass = CGFloat(truncating: spacingForGlassValue)
     }
 
-    let swiftUIView = LiquidGlassButtonGroupSwiftUI(viewModel: vm)
+    let swiftUIView = LiquidGlassButtonGroupSwiftUI(viewModel: vm) { [weak self] size in
+      self?.reportContentSize(size)
+    }
     let hc = UIHostingController(rootView: swiftUIView)
+    hc.configureForFlutterPlatformView()
     hc.view.backgroundColor = .clear
     hc.view.translatesAutoresizingMaskIntoConstraints = false
 
@@ -171,7 +182,24 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     self.hostingController = hc
   }
 
-  @available(iOS 26.0, *)
+  /// Pushes the buttons' natural size to Flutter whenever it changes (axis,
+  /// spacing, labels, icon size...), so the Flutter box always matches.
+  private func reportContentSize(_ size: CGSize) {
+    let rounded = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
+    guard rounded.width > 0, rounded.height > 0, rounded != contentSize else { return }
+    contentSize = rounded
+    contentSizeVersion += 1
+    methodChannel.invokeMethod(
+      "contentSizeChanged",
+      arguments: [
+        "width": Double(rounded.width),
+        "height": Double(rounded.height),
+        "version": contentSizeVersion,
+      ]
+    )
+  }
+
+  @available(iOS 16.0, *)
   private func updateSwiftUIButtons(_ args: [String: Any]?) {
     guard let vm = self.viewModel as? LiquidGlassButtonGroupViewModel else { return }
 
@@ -193,7 +221,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     }
   }
 
-  @available(iOS 26.0, *)
+  @available(iOS 16.0, *)
   private static func parseButtonDicts(
     _ buttonDicts: [[String: Any]]?,
     channel: FlutterMethodChannel,
@@ -221,7 +249,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     return result
   }
 
-  // MARK: - Legacy UIKit path (pre-iOS 26)
+  // MARK: - Legacy UIKit path (pre-iOS 16)
 
   private static func decodeColor(from value: Any?) -> UIColor? {
     guard let numericValue = value as? NSNumber else { return nil }

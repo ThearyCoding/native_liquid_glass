@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import native_liquid_glass
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -7,6 +8,10 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Engines that render Flutter sheets get all app plugins too.
+    NativeLiquidGlassPlugin.flutterSheetPluginRegistrant = { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

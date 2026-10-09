@@ -30,9 +30,16 @@ mixin LiquidGlassRouteSuppression<T extends StatefulWidget> on State<T> {
     }
     
     if (!_shouldRender) {
-      return const SizedBox.shrink();
+      // Hide while another route is on top, but keep the exact layout slot and
+      // the native view alive. Collapsing to zero size made neighbours (e.g.
+      // other AppBar actions) jump during route transitions, and removing the
+      // platform view recreated and re-measured it on every return.
+      return Visibility.maintain(
+        visible: false,
+        child: child,
+      );
     }
-    
+
     return IgnorePointer(
       ignoring: !_shouldBeInteractive,
       child: child,

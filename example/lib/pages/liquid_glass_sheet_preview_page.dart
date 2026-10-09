@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'package:native_liquid_glass/native_liquid_glass.dart';
 
+import '../sheets/demo_sheets.dart';
 import '../widgets/theme_mode_action_button.dart';
 
 class LiquidGlassSheetPreviewPage extends StatefulWidget {
-  static const String flutterSheetRoute = '/flutter-sheet';
-
   final ValueChanged<bool> onThemeChanged;
 
   const LiquidGlassSheetPreviewPage({super.key, required this.onThemeChanged});
@@ -19,59 +16,69 @@ class LiquidGlassSheetPreviewPage extends StatefulWidget {
 
 class _LiquidGlassSheetPreviewPageState
     extends State<LiquidGlassSheetPreviewPage> {
-  LiquidGlassSheetHandle? _activeHandle;
-  bool _showTitle = true;
-  bool _showMessage = true;
-  bool _prefersGrabberVisible = true;
-  bool _isModal = false;
+  LiquidGlassSheetHandle<Object>? _activeHandle;
+  String _language = 'English';
+  String _lastResult = '—';
   bool _mediumDetent = true;
   bool _largeDetent = true;
+  bool _customHeightDetent = false;
+  bool _prefersGrabberVisible = true;
+  bool _isModal = false;
+  bool _roundedCorners = false;
 
-  List<LiquidGlassSheetDetent> get _detents => [
-    if (_mediumDetent) LiquidGlassSheetDetent.medium,
-    if (_largeDetent) LiquidGlassSheetDetent.large,
-  ];
-
-  void _showBuilderSheet(BuildContext context) {
-    _activeHandle?.dismiss();
-    _activeHandle = LiquidGlassSheet.show(
-      context: context,
-      title: _showTitle ? 'Sheet Title' : null,
-      message: _showMessage
-          ? 'This is a Liquid Glass native sheet on iOS 26+.'
-          : null,
-      detents: _detents.isNotEmpty ? _detents : [LiquidGlassSheetDetent.medium],
-      prefersGrabberVisible: _prefersGrabberVisible,
-      isModal: _isModal,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Custom sheet body content. Can include any widget.'),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: () {
-                _activeHandle?.dismiss();
-                _activeHandle = null;
-              },
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
-    );
+  List<LiquidGlassSheetDetent> get _detents {
+    final detents = [
+      if (_customHeightDetent) const LiquidGlassSheetDetent.height(320),
+      if (_mediumDetent) LiquidGlassSheetDetent.medium,
+      if (_largeDetent) LiquidGlassSheetDetent.large,
+    ];
+    return detents.isEmpty ? [LiquidGlassSheetDetent.medium] : detents;
   }
 
-  void _showRouteSheet(BuildContext context) {
-    _activeHandle?.dismiss();
-    _activeHandle = LiquidGlassSheet.show(
+  /// Opens a sheet (closing the current one first) and returns its handle.
+  Future<LiquidGlassSheetHandle<Object>?> _show(
+    String name,
+    Map<String, dynamic> arguments,
+  ) async {
+    await _activeHandle?.dismiss();
+    if (!mounted) return null;
+    final handle = LiquidGlassSheet.show<Object>(
       context: context,
-      route: LiquidGlassSheetPreviewPage.flutterSheetRoute,
-      detents: _detents.isNotEmpty ? _detents : [LiquidGlassSheetDetent.medium],
+      name: name,
+      arguments: arguments,
+      detents: _detents,
       prefersGrabberVisible: _prefersGrabberVisible,
       isModal: _isModal,
+      cornerRadius: _roundedCorners ? 40 : null,
     );
+    _activeHandle = handle;
+    handle.result.then(
+      (result) {
+        if (identical(_activeHandle, handle)) _activeHandle = null;
+        if (!mounted) return;
+        setState(() {
+          _lastResult = '$result';
+          if (name == LanguagePickerSheet.name && result is String) {
+            _language = result;
+          }
+        });
+      },
+      onError: (Object error) {
+        if (identical(_activeHandle, handle)) _activeHandle = null;
+        if (mounted) setState(() => _lastResult = 'error: $error');
+      },
+    );
+    return handle;
+  }
+
+  Future<void> _showThenDismissFromHost() async {
+    final handle = await _show(DetailsSheet.name, {'closesIn': '3s'});
+    await Future<void>.delayed(const Duration(seconds: 3));
+    // Close only the sheet this button opened, and only if it's still open;
+    // never a sheet the user opened afterwards.
+    if (handle != null && handle.isShowing) {
+      await handle.dismiss('auto-closed after 3s');
+    }
   }
 
   @override
@@ -82,185 +89,96 @@ class _LiquidGlassSheetPreviewPageState
 
   @override
   Widget build(BuildContext context) {
+    final nativeSheet = NativeLiquidGlassUtils.supportsNativeSheet;
     return Scaffold(
       appBar: AppBar(
         title: const Text('LiquidGlassSheet preview'),
         actions: [ThemeModeActionButton(onThemeChanged: widget.onThemeChanged)],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () => _showBuilderSheet(context),
-                        icon: const Icon(Icons.open_in_new_rounded),
-                        label: const Text('Show builder sheet'),
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: () => _showRouteSheet(context),
-                        icon: const Icon(Icons.route_rounded),
-                        label: const Text('Show route sheet'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Show title'),
-                        value: _showTitle,
-                        onChanged: (v) => setState(() => _showTitle = v),
-                      ),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Show message'),
-                        value: _showMessage,
-                        onChanged: (v) => setState(() => _showMessage = v),
-                      ),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Prefers grabber visible'),
-                        value: _prefersGrabberVisible,
-                        onChanged: (v) =>
-                            setState(() => _prefersGrabberVisible = v),
-                      ),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Modal (non-dismissible)'),
-                        value: _isModal,
-                        onChanged: (v) => setState(() => _isModal = v),
-                      ),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Medium detent'),
-                        value: _mediumDetent,
-                        onChanged: (v) => setState(() => _mediumDetent = v),
-                      ),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Large detent'),
-                        value: _largeDetent,
-                        onChanged: (v) => setState(() => _largeDetent = v),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(
+            nativeSheet
+                ? 'Native UISheetPresentationController with Flutter content'
+                : 'Flutter fallback (native sheet needs iOS 15+)',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-        ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () =>
+                _show(LanguagePickerSheet.name, {'selected': _language}),
+            icon: const Icon(Icons.language_rounded),
+            label: Text('Language picker ($_language)'),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: () => _show(DetailsSheet.name, {
+              'from': 'preview page',
+              'openedAt': TimeOfDay.now().format(context),
+            }),
+            icon: const Icon(Icons.widgets_rounded),
+            label: const Text('Interactive sheet'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _showThenDismissFromHost,
+            icon: const Icon(Icons.timer_outlined),
+            label: const Text('Auto-close after 3s (demo)'),
+          ),
+          const SizedBox(height: 12),
+          Text('Last result: $_lastResult'),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                children: [
+                  _option(
+                    'Medium detent',
+                    _mediumDetent,
+                    (v) => _mediumDetent = v,
+                  ),
+                  _option(
+                    'Large detent',
+                    _largeDetent,
+                    (v) => _largeDetent = v,
+                  ),
+                  _option(
+                    'Custom 320pt detent (iOS 16+)',
+                    _customHeightDetent,
+                    (v) => _customHeightDetent = v,
+                  ),
+                  _option(
+                    'Prefers grabber visible',
+                    _prefersGrabberVisible,
+                    (v) => _prefersGrabberVisible = v,
+                  ),
+                  _option(
+                    'Modal (non-dismissible)',
+                    _isModal,
+                    (v) => _isModal = v,
+                  ),
+                  _option(
+                    'Corner radius 40',
+                    _roundedCorners,
+                    (v) => _roundedCorners = v,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-class FlutterSheetRoutePage extends StatefulWidget {
-  const FlutterSheetRoutePage({super.key});
-
-  @override
-  State<FlutterSheetRoutePage> createState() => _FlutterSheetRoutePageState();
-}
-
-class _FlutterSheetRoutePageState extends State<FlutterSheetRoutePage> {
-  static const _presenterChannel = MethodChannel('liquid-glass-presenter');
-  String _selectedLanguage = 'English';
-
-  int? get _sheetId {
-    final idFromGet = Get.parameters['_sheetId'];
-    if (idFromGet != null) {
-      return int.tryParse(idFromGet);
-    }
-
-    final routeName = ModalRoute.of(context)?.settings.name;
-    if (routeName == null) {
-      return null;
-    }
-    return int.tryParse(Uri.parse(routeName).queryParameters['_sheetId'] ?? '');
-  }
-
-  Future<void> _closeSheet() async {
-
-    final sheetId = _sheetId;
-
-    print('Closing sheet with id: $sheetId');
-    if (sheetId != null) {
-   await _presenterChannel.invokeMethod<void>('dismissSheet', {
-        'id': _sheetId,
-      });
-      return;
-    }
-
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Material(
-        type: MaterialType.transparency,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Language selection',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Choose your preferred language for this sheet.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 20),
-              DropdownButton<String>(
-                value: _selectedLanguage,
-                items: const [
-                  DropdownMenuItem(value: 'English', child: Text('English')),
-                  DropdownMenuItem(value: 'Spanish', child: Text('Spanish')),
-                  DropdownMenuItem(value: 'French', child: Text('French')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedLanguage = value;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'This is normal content inside the native Flutter sheet. It does not use a Scaffold.',
-              ),
-              const SizedBox(height: 24),
-              LiquidGlassButton(
-                onPressed: _closeSheet,
-                label: 'Close sheet'
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _option(String title, bool value, ValueSetter<bool> update) {
+    return SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title),
+      value: value,
+      onChanged: (v) => setState(() => update(v)),
     );
   }
 }
