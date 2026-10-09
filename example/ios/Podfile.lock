@@ -1,41 +1,16 @@
 PODS:
-  - CocoaLumberjack (3.9.0):
-    - CocoaLumberjack/Core (= 3.9.0)
-  - CocoaLumberjack/Core (3.9.0)
   - Flutter (1.0.0)
-  - integration_test (0.0.1):
-    - Flutter
-  - native_liquid_glass (0.2.7):
-    - Flutter
-    - SVGKit
-  - SVGKit (3.0.0):
-    - CocoaLumberjack (~> 3.0)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - native_liquid_glass (from `.symlinks/plugins/native_liquid_glass/ios`)
-
-SPEC REPOS:
-  trunk:
-    - CocoaLumberjack
-    - SVGKit
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  integration_test:
-    :path: ".symlinks/plugins/integration_test/ios"
-  native_liquid_glass:
-    :path: ".symlinks/plugins/native_liquid_glass/ios"
 
 SPEC CHECKSUMS:
-  CocoaLumberjack: 5644158777912b7de7469fa881f8a3f259c2512a
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  native_liquid_glass: d6eb7d4ca2ab9fddd9a58a5eb7407875206fa119
-  SVGKit: 1ad7513f8c74d9652f94ed64ddecda1a23864dea
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
 
-PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0

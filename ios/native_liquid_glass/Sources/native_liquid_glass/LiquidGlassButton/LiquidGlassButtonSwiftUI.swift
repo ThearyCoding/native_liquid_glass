@@ -10,6 +10,8 @@ final class LiquidGlassButtonViewModel: ObservableObject {
   @Published var isPopupRouteSuppressed: Bool = false
   @Published var forceShow: Bool = false
   var onPressed: (() -> Void)?
+  /// Called with the button's natural size whenever it changes.
+  var onContentSizeChange: ((CGSize) -> Void)?
   var shouldSuppress: Bool {
     !forceShow && (isRouteSuppressed || isPopupRouteSuppressed)
   }
@@ -106,6 +108,14 @@ struct LiquidGlassButtonRootView: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityLabel)
     .accessibilityAddTraits(.isButton)
+    // Natural size, independent of the platform view's current frame, so
+    // Flutter can size its box to exactly what is drawn.
+    .fixedSize()
+    .onGeometryChange(for: CGSize.self) { proxy in
+      proxy.size
+    } action: { size in
+      viewModel.onContentSizeChange?(size)
+    }
   }
 
   // MARK: iOS 26+ – glass effect path
@@ -152,7 +162,7 @@ struct LiquidGlassButtonRootView: View {
   @ViewBuilder
 private var standardButtonView: some View {
     let tint = resolvedTintColor()
-    let currentStyle = effectiveButtonStyle
+    let currentStyle = standardButtonStyle
     let isDisabled = !isEffectivelyEnabled
     
     // Create content with exact sizing to preserve shape
@@ -164,6 +174,9 @@ private var standardButtonView: some View {
                 if currentStyle == "borderedProminent" || currentStyle == "filled" {
                     resolvedShape()
                         .fill(backgroundColorForCurrentStyle(tint: tint, isDisabled: isDisabled))
+                } else if currentStyle == "tinted" {
+                    resolvedShape()
+                        .fill(tint.map { $0.opacity(0.18) } ?? Color(uiColor: .tertiarySystemFill))
                 } else if currentStyle == "gray" {
                     resolvedShape()
                         .fill(Color(.systemGray).opacity(isDisabled ? 0.1 : 0.2))
@@ -196,6 +209,9 @@ private var standardButtonView: some View {
         baseColor = tint
     } else if config.tint != nil {
         baseColor = Color(uiColor: config.tint!)
+    } else if effectiveButtonStyle == "prominentGlass" || effectiveButtonStyle == "automatic" {
+        // Plain stand-in for prominent glass (before iOS 26).
+        baseColor = .accentColor
     } else {
         // Default to a neutral color instead of system blue
         baseColor = Color.gray
@@ -208,7 +224,7 @@ private var standardButtonView: some View {
 }
 
 private func foregroundColorForCurrentStyle(tint: Color?, isDisabled: Bool) -> Color {
-    let currentStyle = effectiveButtonStyle
+    let currentStyle = standardButtonStyle
     
     if currentStyle == "borderedProminent" || currentStyle == "filled" {
         // For filled styles, use white for text/icon
@@ -217,8 +233,9 @@ private func foregroundColorForCurrentStyle(tint: Color?, isDisabled: Bool) -> C
         }
         return .white
     } else {
-        // For bordered/plain styles, use the tint color
-        let color = effectiveTextColor ?? tint ?? Color.gray
+        // For bordered/plain styles, use the tint color; the plain stand-in
+        // for glass ("tinted", before iOS 26) uses the primary label color.
+        let color = effectiveTextColor ?? tint ?? (currentStyle == "tinted" ? Color.primary : Color.gray)
         if isDisabled {
             return color.opacity(0.4)
         }
@@ -247,26 +264,26 @@ private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
   private var buttonLabel: some View {
     if config.iconOnly {
       iconView
-        .foregroundColor(effectiveIconColor)
+        .foregroundColor(iconForeground)
     } else if config.imagePlacement == "trailing" {
       HStack(spacing: config.imagePadding) {
         textLabel
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
       }
     } else if config.imagePlacement == "top" {
       VStack(spacing: config.imagePadding) {
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
         textLabel
       }
     } else if config.imagePlacement == "bottom" {
       VStack(spacing: config.imagePadding) {
         textLabel
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
       }
     } else {
       // "leading" (default)
       HStack(spacing: config.imagePadding) {
-        iconView.foregroundColor(effectiveIconColor)
+        iconView.foregroundColor(iconForeground)
         textLabel
       }
     }
@@ -294,7 +311,7 @@ private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
       .multilineTextAlignment(.leading)
       .font(resolvedFont())
       .kerning(config.labelStyle?.letterSpacing ?? 0)
-      .foregroundColor(effectiveTextColor)
+      .foregroundColor(textForeground)
   }
 
   // MARK: Color resolution
@@ -312,6 +329,28 @@ private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
     // text+icon: icon adopts the same colour as the text so both stay in sync,
     // matching UIKit's baseForegroundColor which colours both text and icon together.
     return effectiveTextColor
+  }
+
+  /// Whether the button is drawn by `standardButtonView` (always before
+  /// iOS 26, and for the non-glass styles on iOS 26+).
+  private var standardRendering: Bool {
+    if #available(iOS 26.0, *) { return !isGlassStyle }
+    return true
+  }
+
+  /// Unset label colors fall back to the style's default color in the
+  /// standard rendering (e.g. white on `borderedProminent`). `nil` would
+  /// reset the color to primary and override that default.
+  private var textForeground: Color? {
+    if let c = effectiveTextColor { return c }
+    guard standardRendering else { return nil }
+    return foregroundColorForCurrentStyle(tint: resolvedTintColor(), isDisabled: !isEffectivelyEnabled)
+  }
+
+  private var iconForeground: Color? {
+    if let c = effectiveIconColor { return c }
+    guard standardRendering else { return nil }
+    return foregroundColorForCurrentStyle(tint: resolvedTintColor(), isDisabled: !isEffectivelyEnabled)
   }
 
   private var effectiveTextColor: Color? {
@@ -384,6 +423,7 @@ private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
     if config.iconOnly {
       return config.height > 0 ? config.height : nil
     }
+    if config.fitsContentHeight { return nil }
     return config.height > 0 ? config.height : nil
   }
 
@@ -422,6 +462,18 @@ private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
   }
 
   // MARK: Helpers
+
+  /// The style drawn by [standardButtonView]. Without Liquid Glass
+  /// (before iOS 26) the glass styles use their plain system equivalents:
+  /// `glass` → `tinted`, `prominentGlass` / `automatic` (prominent glass on
+  /// iOS 26) → `borderedProminent`.
+  private var standardButtonStyle: String {
+    switch effectiveButtonStyle {
+    case "glass": return "tinted"
+    case "prominentGlass", "automatic": return "borderedProminent"
+    default: return effectiveButtonStyle
+    }
+  }
 
   private var isGlassStyle: Bool {
     // If forceShow is true, always use the configured style

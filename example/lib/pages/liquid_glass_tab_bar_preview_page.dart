@@ -120,244 +120,159 @@ class _LiquidGlassTabBarPreviewPageState
               ),
             ),
           ),
+          // One scrolling flow: the settings card scrolls with the preview
+          // instead of overflowing on short screens.
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Selected tab: ${items[_currentIndex].label}',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 24),
-                            FilledButton(
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  backgroundColor: Colors.white,
-                                  context: context,
-                                  builder: (context) => SizedBox(
-                                    height: 300,
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'Bottom Sheet',
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.headlineSmall,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          const Text(
-                                            'Check if the tab bar glass effect is clipped below.',
-                                          ),
-                                          const SizedBox(height: 24),
-                                          LiquidGlassButton(
-                                            forceShow: true,
-                                            onPressed: () =>
-                                                Navigator.pop(context),
-                                            label: 'Close'
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text('Show Bottom Sheet'),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Dialog'),
-                                    content: const Text(
-                                      'Check if the tab bar glass effect is clipped behind this dialog.',
-                                    ),
-                                    actions: [
-                                      LiquidGlassButton(
-                                        forceShow: true,
-                                        onPressed: () => Navigator.pop(context),
-                                        label: 'Close'
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              child: const Text('Show Dialog'),
-                            ),
-                          ],
-                        ),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 50),
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Selected tab: ${items[_currentIndex].label}',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                  ),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Show labels'),
-                            value: _showLabels,
-                            onChanged: (value) {
-                              setState(() {
-                                _showLabels = value;
-                              });
-                            },
-                          ),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Show trailing action button'),
-                            value: _showActionButton,
-                            onChanged: (value) {
-                              setState(() {
-                                _showActionButton = value;
-                              });
-                            },
-                          ),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Custom badge color (Saved tab)'),
-                            value: _useBadgeColor,
-                            onChanged: (value) {
-                              setState(() {
-                                _useBadgeColor = value;
-                              });
-                            },
-                          ),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Use custom selected colors'),
-                            value: _useCustomColors,
-                            onChanged: (value) {
-                              setState(() {
-                                _useCustomColors = value;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Text('Item positioning: '),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child:
-                                    DropdownButton<
-                                      LiquidGlassTabBarItemPositioning
-                                    >(
-                                      isExpanded: true,
-                                      value: _positioning,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value:
-                                              LiquidGlassTabBarItemPositioning
-                                                  .automatic,
-                                          child: Text('automatic'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value:
-                                              LiquidGlassTabBarItemPositioning
-                                                  .fill,
-                                          child: Text('fill'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value:
-                                              LiquidGlassTabBarItemPositioning
-                                                  .centered,
-                                          child: Text('centered'),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) {
-                                          return;
-                                        }
-                                        setState(() {
-                                          _positioning = value;
-                                        });
-                                      },
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            backgroundColor: Colors.white,
+                            context: context,
+                            builder: (context) => SizedBox(
+                              height: 300,
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Bottom Sheet',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.headlineSmall,
                                     ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Text('Icon size'),
-                              Expanded(
-                                child: Slider.adaptive(
-                                  min: 16,
-                                  max: 34,
-                                  divisions: 9,
-                                  value: _iconSize,
-                                  label: _iconSize.toStringAsFixed(0),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _iconSize = value;
-                                    });
-                                  },
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'Check if the tab bar glass effect is clipped below.',
+                                    ),
+                                    const SizedBox(height: 24),
+                                    LiquidGlassButton(
+                                      forceShow: true,
+                                      onPressed: () => Navigator.pop(context),
+                                      label: 'Close',
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Text(_iconSize.toStringAsFixed(0)),
-                            ],
-                          ),
-                          if (_showLabels) ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Slider.adaptive(
-                                    min: 9,
-                                    max: 14,
-                                    divisions: 10,
-                                    value: _labelFontSize,
-                                    label: _labelFontSize.toStringAsFixed(1),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _labelFontSize = value;
-                                      });
-                                    },
-                                  ),
+                            ),
+                          );
+                        },
+                        child: const Text('Show Bottom Sheet'),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Dialog'),
+                              content: const Text(
+                                'Check if the tab bar glass effect is clipped behind this dialog.',
+                              ),
+                              actions: [
+                                LiquidGlassButton(
+                                  forceShow: true,
+                                  onPressed: () => Navigator.pop(context),
+                                  label: 'Close',
                                 ),
-                                Text(_labelFontSize.toStringAsFixed(1)),
                               ],
                             ),
-                            Row(
-                              children: [
-                                const Text('Label weight: '),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: DropdownButton<FontWeight>(
+                          );
+                        },
+                        child: const Text('Show Dialog'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Show labels'),
+                          value: _showLabels,
+                          onChanged: (value) {
+                            setState(() {
+                              _showLabels = value;
+                            });
+                          },
+                        ),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Show trailing action button'),
+                          value: _showActionButton,
+                          onChanged: (value) {
+                            setState(() {
+                              _showActionButton = value;
+                            });
+                          },
+                        ),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Custom badge color (Saved tab)'),
+                          value: _useBadgeColor,
+                          onChanged: (value) {
+                            setState(() {
+                              _useBadgeColor = value;
+                            });
+                          },
+                        ),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Use custom selected colors'),
+                          value: _useCustomColors,
+                          onChanged: (value) {
+                            setState(() {
+                              _useCustomColors = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Text('Item positioning: '),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child:
+                                  DropdownButton<
+                                    LiquidGlassTabBarItemPositioning
+                                  >(
                                     isExpanded: true,
-                                    value: _labelFontWeight,
+                                    value: _positioning,
                                     items: const [
                                       DropdownMenuItem(
-                                        value: FontWeight.w400,
-                                        child: Text('w400'),
+                                        value: LiquidGlassTabBarItemPositioning
+                                            .automatic,
+                                        child: Text('automatic'),
                                       ),
                                       DropdownMenuItem(
-                                        value: FontWeight.w500,
-                                        child: Text('w500'),
+                                        value: LiquidGlassTabBarItemPositioning
+                                            .fill,
+                                        child: Text('fill'),
                                       ),
                                       DropdownMenuItem(
-                                        value: FontWeight.w600,
-                                        child: Text('w600'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: FontWeight.w700,
-                                        child: Text('w700'),
+                                        value: LiquidGlassTabBarItemPositioning
+                                            .centered,
+                                        child: Text('centered'),
                                       ),
                                     ],
                                     onChanged: (value) {
@@ -365,43 +280,118 @@ class _LiquidGlassTabBarPreviewPageState
                                         return;
                                       }
                                       setState(() {
-                                        _labelFontWeight = value;
+                                        _positioning = value;
                                       });
                                     },
                                   ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                const Text('Letter spacing'),
-                                Expanded(
-                                  child: Slider.adaptive(
-                                    min: -0.5,
-                                    max: 2.0,
-                                    divisions: 10,
-                                    value: _labelLetterSpacing,
-                                    label: _labelLetterSpacing.toStringAsFixed(
-                                      1,
-                                    ),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _labelLetterSpacing = value;
-                                      });
-                                    },
-                                  ),
-                                ),
-                                Text(_labelLetterSpacing.toStringAsFixed(1)),
-                              ],
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Text('Icon size'),
+                            Expanded(
+                              child: Slider.adaptive(
+                                min: 16,
+                                max: 34,
+                                divisions: 9,
+                                value: _iconSize,
+                                label: _iconSize.toStringAsFixed(0),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _iconSize = value;
+                                  });
+                                },
+                              ),
+                            ),
+                            Text(_iconSize.toStringAsFixed(0)),
+                          ],
+                        ),
+                        if (_showLabels) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Slider.adaptive(
+                                  min: 9,
+                                  max: 14,
+                                  divisions: 10,
+                                  value: _labelFontSize,
+                                  label: _labelFontSize.toStringAsFixed(1),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _labelFontSize = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                              Text(_labelFontSize.toStringAsFixed(1)),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Text('Label weight: '),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButton<FontWeight>(
+                                  isExpanded: true,
+                                  value: _labelFontWeight,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: FontWeight.w400,
+                                      child: Text('w400'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: FontWeight.w500,
+                                      child: Text('w500'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: FontWeight.w600,
+                                      child: Text('w600'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: FontWeight.w700,
+                                      child: Text('w700'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _labelFontWeight = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Text('Letter spacing'),
+                              Expanded(
+                                child: Slider.adaptive(
+                                  min: -0.5,
+                                  max: 2.0,
+                                  divisions: 10,
+                                  value: _labelLetterSpacing,
+                                  label: _labelLetterSpacing.toStringAsFixed(1),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _labelLetterSpacing = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                              Text(_labelLetterSpacing.toStringAsFixed(1)),
+                            ],
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 50),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

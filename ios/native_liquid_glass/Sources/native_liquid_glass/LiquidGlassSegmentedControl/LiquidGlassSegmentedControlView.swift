@@ -73,6 +73,7 @@ final class LiquidGlassSegmentedControlPlatformView: NSObject, FlutterPlatformVi
 
     let swiftUIView = LiquidGlassSegmentedControlSwiftUIView(viewModel: vm)
     let hc = UIHostingController(rootView: swiftUIView)
+    hc.configureForFlutterPlatformView()
     hc.view.backgroundColor = .clear
     hc.view.translatesAutoresizingMaskIntoConstraints = false
 

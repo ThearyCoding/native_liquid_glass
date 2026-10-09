@@ -19,6 +19,11 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
   private var suppressObserver: GlassSuppressObserver?
   private var isRouteSuppressed = false
   private var isPopupRouteSuppressed = false
+  /// Natural size of the button as last laid out by SwiftUI, and a version
+  /// that increments with each change. Every size sent to Flutter carries the
+  /// version so a late reply can't overwrite a newer pushed size.
+  private var contentSize: CGSize?
+  private var contentSizeVersion = 0
 
   init(
     frame: CGRect,
@@ -58,13 +63,8 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
       switch call.method {
       case "getIntrinsicSize":
         if #available(iOS 16.0, *) {
-          self.hostingController?.view.setNeedsLayout()
-          self.hostingController?.view.layoutIfNeeded()
-          let size =
-            self.hostingController?.view.systemLayoutSizeFitting(
-              UIView.layoutFittingCompressedSize)
-            ?? CGSize(width: 100, height: 50)
-          result(["width": Double(size.width), "height": Double(size.height)])
+          // Nil until the first layout; `contentSizeChanged` follows then.
+          result(self.contentSizePayload())
         } else {
           self.legacyButton?.setNeedsLayout()
           self.legacyButton?.layoutIfNeeded()
@@ -80,15 +80,8 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
           if let vm = self.viewModel as? LiquidGlassButtonViewModel {
             vm.config = newConfig
           }
-          DispatchQueue.main.async {
-            self.hostingController?.view.setNeedsLayout()
-            self.hostingController?.view.layoutIfNeeded()
-            let size =
-              self.hostingController?.view.systemLayoutSizeFitting(
-                UIView.layoutFittingCompressedSize)
-              ?? CGSize(width: 100, height: 50)
-            result(["width": Double(size.width), "height": Double(size.height)])
-          }
+          // The new layout's size is pushed via `contentSizeChanged`.
+          result(nil)
         } else {
           self.legacyConfig = newConfig
           self.applyLegacyConfiguration()
@@ -172,12 +165,33 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
     containerView
   }
 
+  private func contentSizePayload() -> [String: Any]? {
+    guard let size = contentSize else { return nil }
+    return [
+      "width": Double(size.width),
+      "height": Double(size.height),
+      "version": contentSizeVersion,
+    ]
+  }
+
+  /// Pushes the button's natural size to Flutter whenever it changes.
+  private func reportContentSize(_ size: CGSize) {
+    let rounded = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
+    guard rounded.width > 0, rounded.height > 0, rounded != contentSize else { return }
+    contentSize = rounded
+    contentSizeVersion += 1
+    methodChannel.invokeMethod("contentSizeChanged", arguments: contentSizePayload())
+  }
+
   // MARK: - SwiftUI setup (iOS 16+)
 
   @available(iOS 16.0, *)
   private func configureSwiftUI(args: [String: Any]?) {
     let config = LiquidGlassButtonConfig(arguments: args, defaultIconOnly: defaultIconOnly)
     let vm = LiquidGlassButtonViewModel(config: config)
+    vm.onContentSizeChange = { [weak self] size in
+      self?.reportContentSize(size)
+    }
     vm.onPressed = { [weak self] in
       guard let self, self.suppressObserver?.isInteractionSuppressed != true else { return }
       self.methodChannel.invokeMethod("onPressed", arguments: nil)
@@ -186,6 +200,7 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
 
     let swiftUIView = LiquidGlassButtonRootView(viewModel: vm)
     let hc = UIHostingController(rootView: swiftUIView)
+    hc.configureForFlutterPlatformView()
     hc.view.backgroundColor = .clear
     hc.view.translatesAutoresizingMaskIntoConstraints = false
 

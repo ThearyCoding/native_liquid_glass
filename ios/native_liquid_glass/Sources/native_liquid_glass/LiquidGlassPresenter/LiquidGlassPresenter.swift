@@ -8,8 +8,9 @@ final class LiquidGlassPresenter: NSObject {
   private weak var hostViewController: UIViewController?
   private let methodChannel: FlutterMethodChannel
   private var presentedPopovers: [Int: UIViewController] = [:]
-  private var presentedSheets: [Int: UIViewController] = [:]
-  private var sheetEngines: [Int: FlutterEngine] = [:]
+  /// `popoverPresentationController.delegate` is weak; keep each one alive.
+  private var popoverDelegates: [Int: PopoverDelegateProxy] = [:]
+  private let sheetPresenter = LiquidGlassSheetPresenter()
 
   init(messenger: FlutterBinaryMessenger, hostViewController: UIViewController?) {
     self.messenger = messenger
@@ -47,10 +48,15 @@ final class LiquidGlassPresenter: NSObject {
       switch call.method {
       case "showSheet":
         self.handleShowSheet(call: call, result: result)
-      case "showFlutterSheet":
-        self.handleShowFlutterSheet(call: call, result: result)
       case "dismissSheet":
         self.handleDismissSheet(call: call, result: result)
+      case "prewarmSheet":
+        let args = call.arguments as? [String: Any]
+        self.sheetPresenter.prewarm(
+          entrypoint: (args?["entrypoint"] as? String) ?? "bottomSheetMain",
+          libraryURI: args?["libraryUri"] as? String
+        )
+        result(nil)
       case "showAlert":
         self.handleShowAlert(call: call, result: result)
       case "showPopover":
@@ -65,6 +71,7 @@ final class LiquidGlassPresenter: NSObject {
 
   // MARK: - Sheet
 
+  /// Result is completed when the sheet is dismissed, with the dismissal value.
   private func handleShowSheet(call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard let args = call.arguments as? [String: Any],
       let id = (args["id"] as? NSNumber)?.intValue,
@@ -73,138 +80,17 @@ final class LiquidGlassPresenter: NSObject {
       result(FlutterError(code: "NO_HOST", message: "No host view controller", details: nil))
       return
     }
-
-    let title = args["title"] as? String
-    let message = args["message"] as? String
-    let detentsRaw = args["detents"] as? [String] ?? ["medium", "large"]
-    let prefersGrabberVisible = (args["prefersGrabberVisible"] as? Bool) ?? true
-    let isModal = (args["isModal"] as? Bool) ?? false
-
-    let contentVC = UIViewController()
-    contentVC.view.backgroundColor = .systemBackground
-
-    // Add title/message labels if provided
-    var yOffset: CGFloat = 24
-    if let title {
-      let label = UILabel()
-      label.text = title
-      label.font = .preferredFont(forTextStyle: .headline)
-      label.translatesAutoresizingMaskIntoConstraints = false
-      contentVC.view.addSubview(label)
-      NSLayoutConstraint.activate([
-        label.topAnchor.constraint(equalTo: contentVC.view.topAnchor, constant: yOffset),
-        label.leadingAnchor.constraint(equalTo: contentVC.view.leadingAnchor, constant: 20),
-        label.trailingAnchor.constraint(equalTo: contentVC.view.trailingAnchor, constant: -20),
-      ])
-      yOffset += 36
-    }
-    if let message {
-      let label = UILabel()
-      label.text = message
-      label.font = .preferredFont(forTextStyle: .body)
-      label.numberOfLines = 0
-      label.translatesAutoresizingMaskIntoConstraints = false
-      contentVC.view.addSubview(label)
-      NSLayoutConstraint.activate([
-        label.topAnchor.constraint(equalTo: contentVC.view.topAnchor, constant: yOffset),
-        label.leadingAnchor.constraint(equalTo: contentVC.view.leadingAnchor, constant: 20),
-        label.trailingAnchor.constraint(equalTo: contentVC.view.trailingAnchor, constant: -20),
-      ])
-    }
-
-    if #available(iOS 15.0, *), let sheet = contentVC.sheetPresentationController {
-      var detents: [UISheetPresentationController.Detent] = []
-      for d in detentsRaw {
-        switch d {
-        case "medium": detents.append(.medium())
-        case "large": detents.append(.large())
-        default: detents.append(.medium())
-        }
-      }
-      sheet.detents = detents
-      sheet.prefersGrabberVisible = prefersGrabberVisible
-    }
-    contentVC.isModalInPresentation = isModal
-
-    presentedSheets[id] = contentVC
-    host.present(contentVC, animated: true) {
-      result(nil)
-    }
-  }
-
-  private func createFlutterSheetEngine(id: Int, initialRoute route: String) -> FlutterEngine {
-    let project = FlutterDartProject()
-    let engine = FlutterEngine(name: "liquid-glass-sheet-\(id)", project: project)
-    engine.run(withEntrypoint: nil, initialRoute: route)
-
-    if let engineRegistrar = engine.registrar(forPlugin: "NativeLiquidGlassPlugin") {
-      NativeLiquidGlassPlugin.register(with: engineRegistrar)
-    }
-
-    return engine
-  }
-
-  private func handleShowFlutterSheet(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    guard let args = call.arguments as? [String: Any],
-      let id = (args["id"] as? NSNumber)?.intValue,
-      let route = args["route"] as? String,
-      let host = findHostVC()
-    else {
-      result(FlutterError(code: "NO_HOST", message: "No host view controller or route", details: nil))
-      return
-    }
-
-    let detentsRaw = args["detents"] as? [String] ?? ["medium", "large"]
-    let prefersGrabberVisible = (args["prefersGrabberVisible"] as? Bool) ?? true
-    let isModal = (args["isModal"] as? Bool) ?? false
-
-    let flutterEngine = createFlutterSheetEngine(id: id, initialRoute: route)
-    let flutterVC = FlutterViewController(
-      engine: flutterEngine,
-      nibName: nil,
-      bundle: nil
-    )
-    flutterVC.view.backgroundColor = .systemBackground
-    flutterVC.modalPresentationStyle = .pageSheet
-    flutterVC.isModalInPresentation = isModal
-
-    if #available(iOS 15.0, *), let sheet = flutterVC.sheetPresentationController {
-      var detents: [UISheetPresentationController.Detent] = []
-      for d in detentsRaw {
-        switch d {
-        case "medium": detents.append(.medium())
-        case "large": detents.append(.large())
-        default: detents.append(.medium())
-        }
-      }
-      sheet.detents = detents
-      sheet.prefersGrabberVisible = prefersGrabberVisible
-    }
-
-    presentedSheets[id] = flutterVC
-    sheetEngines[id] = flutterEngine
-    host.present(flutterVC, animated: true) {
-      result(nil)
-    }
+    sheetPresenter.show(id: id, args: args, host: host, result: result)
   }
 
   private func handleDismissSheet(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    guard let args = call.arguments as? [String: Any],
-      let id = (args["id"] as? NSNumber)?.intValue,
-      let vc = presentedSheets[id]
-    else {
-      result(nil)
-      return
+    if let args = call.arguments as? [String: Any],
+      let id = (args["id"] as? NSNumber)?.intValue
+    {
+      let value = args["result"]
+      sheetPresenter.dismiss(id: id, value: value is NSNull ? nil : value, by: "host app")
     }
-
-    vc.dismiss(animated: true) { [weak self] in
-      self?.presentedSheets.removeValue(forKey: id)
-      if let engine = self?.sheetEngines.removeValue(forKey: id) {
-        engine.destroyContext()
-      }
-      self?.methodChannel.invokeMethod("sheetDismissed", arguments: ["id": id])
-      result(nil)
-    }
+    result(nil)
   }
 
   // MARK: - Alert
@@ -288,6 +174,7 @@ final class LiquidGlassPresenter: NSObject {
     let anchorHeight = (args["anchorHeight"] as? NSNumber)?.doubleValue ?? 0
     let preferredWidth = (args["preferredWidth"] as? NSNumber)?.doubleValue ?? 320
     let preferredHeight = (args["preferredHeight"] as? NSNumber)?.doubleValue ?? 200
+    let barrierDismissible = (args["barrierDismissible"] as? Bool) ?? true
 
     let contentVC = UIViewController()
     contentVC.view.backgroundColor = .systemBackground
@@ -300,7 +187,10 @@ final class LiquidGlassPresenter: NSObject {
         x: anchorX, y: anchorY,
         width: anchorWidth, height: anchorHeight
       )
-      popover.delegate = PopoverDelegateProxy(presenter: self, id: id)
+      let delegate = PopoverDelegateProxy(
+        presenter: self, id: id, barrierDismissible: barrierDismissible)
+      popoverDelegates[id] = delegate
+      popover.delegate = delegate
     }
 
     presentedPopovers[id] = contentVC
@@ -320,26 +210,41 @@ final class LiquidGlassPresenter: NSObject {
 
     vc.dismiss(animated: true) { [weak self] in
       self?.presentedPopovers.removeValue(forKey: id)
+      self?.popoverDelegates.removeValue(forKey: id)
       result(nil)
     }
   }
 
   fileprivate func popoverDidDismiss(id: Int) {
     presentedPopovers.removeValue(forKey: id)
+    popoverDelegates.removeValue(forKey: id)
     methodChannel.invokeMethod("popoverDismissed", arguments: ["id": id])
   }
 }
 
 // MARK: - Popover Delegate Proxy
 
-private final class PopoverDelegateProxy: NSObject, UIPopoverPresentationControllerDelegate {
+final class PopoverDelegateProxy: NSObject, UIPopoverPresentationControllerDelegate {
   private weak var presenter: LiquidGlassPresenter?
   private let id: Int
+  private let barrierDismissible: Bool
 
-  init(presenter: LiquidGlassPresenter, id: Int) {
+  init(presenter: LiquidGlassPresenter, id: Int, barrierDismissible: Bool) {
     self.presenter = presenter
     self.id = id
+    self.barrierDismissible = barrierDismissible
     super.init()
+  }
+
+  /// Stay a popover on iPhone instead of adapting to a full-screen sheet.
+  func adaptivePresentationStyle(
+    for controller: UIPresentationController, traitCollection: UITraitCollection
+  ) -> UIModalPresentationStyle {
+    .none
+  }
+
+  func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
+    barrierDismissible
   }
 
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {

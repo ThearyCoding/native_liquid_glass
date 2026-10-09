@@ -3,7 +3,7 @@ import UIKit
 
 // MARK: - Observable ViewModel
 
-@available(iOS 26.0, *)
+@available(iOS 16.0, *)
 final class LiquidGlassContainerViewModel: ObservableObject {
   @Published var effect: String = "regular"
   @Published var shape: String = "rect"
@@ -46,8 +46,14 @@ final class LiquidGlassContainerViewModel: ObservableObject {
   /// isn't public, so this is the closest public preset — not an exact
   /// match, but visually consistent side-by-side with native buttons.
   func setPressed(_ pressed: Bool) {
-    withAnimation(.bouncy(duration: 0.35, extraBounce: 0.0)) {
-      self.isPressed = pressed
+    if #available(iOS 17.0, *) {
+      withAnimation(.bouncy(duration: 0.35, extraBounce: 0.0)) {
+        self.isPressed = pressed
+      }
+    } else {
+      withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+        self.isPressed = pressed
+      }
     }
   }
 
@@ -309,14 +315,29 @@ struct BuiltInGlassShape: Shape, Animatable {
   }
 }
 
-// MARK: - SwiftUI Glass Container (iOS 26+)
+// MARK: - SwiftUI Glass Container
 
-@available(iOS 26.0, *)
+/// Liquid Glass on iOS 26+; a plain system background in the same shape on
+/// iOS 16–25.
+@available(iOS 16.0, *)
 struct LiquidGlassContainerSwiftUIView: View {
   @ObservedObject var viewModel: LiquidGlassContainerViewModel
   @Namespace private var namespace
 
   var body: some View {
+    if #available(iOS 26.0, *) {
+      glassBody
+    } else {
+      GeometryReader { geometry in
+        shapeView(in: geometry.size)
+          .scaleEffect(viewModel.isPressed ? 1.04 : 1.0)
+          .frame(width: geometry.size.width, height: geometry.size.height)
+      }
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private var glassBody: some View {
     GeometryReader { geometry in
       // Wrap in `GlassEffectContainer` so:
       //   * `Glass.clear` renders with its proper translucent material
@@ -327,15 +348,7 @@ struct LiquidGlassContainerSwiftUIView: View {
       //     require to actually take effect,
       //   * interactive glass gets the compositing context it needs.
       GlassEffectContainer(spacing: 0) {
-        Group {
-          if viewModel.isCustom {
-            customGlassView(in: geometry.size)
-              .transition(.opacity)
-          } else {
-            builtInGlassView(in: geometry.size)
-              .transition(.opacity)
-          }
-        }
+        shapeView(in: geometry.size)
         .applyLiquidGlassContainerModifiers(
           unionId: viewModel.glassEffectUnionId,
           id: viewModel.glassEffectId,
@@ -351,6 +364,19 @@ struct LiquidGlassContainerSwiftUIView: View {
         .scaleEffect(viewModel.isPressed ? 1.04 : 1.0)
       }
       .frame(width: geometry.size.width, height: geometry.size.height)
+    }
+  }
+
+  @ViewBuilder
+  private func shapeView(in size: CGSize) -> some View {
+    Group {
+      if viewModel.isCustom {
+        customGlassView(in: size)
+          .transition(.opacity)
+      } else {
+        builtInGlassView(in: size)
+          .transition(.opacity)
+      }
     }
   }
 
@@ -370,7 +396,7 @@ struct LiquidGlassContainerSwiftUIView: View {
     shape
       .fill(Color.clear)
       .allowsHitTesting(false)
-      .glassEffect(resolvedGlassEffect(), in: shape)
+      .modifier(GlassOrPlainBackground(viewModel: viewModel, shape: shape))
       .background { backgroundFill(for: shape) }
       .overlay { borderOverlay(for: shape) }
   }
@@ -385,7 +411,7 @@ struct LiquidGlassContainerSwiftUIView: View {
     shape
       .fill(Color.clear)
       .allowsHitTesting(false)
-      .glassEffect(resolvedGlassEffect(), in: shape)
+      .modifier(GlassOrPlainBackground(viewModel: viewModel, shape: shape))
       .background { backgroundFill(for: shape) }
       .overlay { borderOverlay(for: shape) }
   }
@@ -420,9 +446,37 @@ struct LiquidGlassContainerSwiftUIView: View {
         .allowsHitTesting(false)
     }
   }
+}
+
+// MARK: - Glass / plain background
+
+/// Liquid Glass in `shape` on iOS 26+. Before that, a plain system
+/// background: the tint or `backgroundColor` (if set), else the secondary
+/// system background, or a light system fill for the `clear` effect.
+@available(iOS 16.0, *)
+private struct GlassOrPlainBackground<S: Shape>: ViewModifier {
+  @ObservedObject var viewModel: LiquidGlassContainerViewModel
+  let shape: S
+
+  func body(content: Content) -> some View {
+    if #available(iOS 26.0, *) {
+      content.glassEffect(resolvedGlassEffect(), in: shape)
+    } else {
+      content.background { shape.fill(plainFill).allowsHitTesting(false) }
+    }
+  }
+
+  private var plainFill: Color {
+    if let tint = viewModel.tint { return Color(uiColor: tint) }
+    if let background = viewModel.backgroundColor { return Color(uiColor: background) }
+    return viewModel.effect == "clear"
+      ? Color(uiColor: .tertiarySystemFill)
+      : Color(uiColor: .secondarySystemBackground)
+  }
 
   // MARK: Glass effect
 
+  @available(iOS 26.0, *)
   private func resolvedGlassEffect() -> Glass {
     var glass: Glass = viewModel.effect == "clear" ? Glass.clear : Glass.regular
     if let tintColor = viewModel.tint {

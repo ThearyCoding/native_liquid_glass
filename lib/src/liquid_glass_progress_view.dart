@@ -89,7 +89,7 @@ class _LiquidGlassProgressViewState extends State<LiquidGlassProgressView> with 
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       return SizedBox(
         height: widget.height,
         child: UiKitView(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'shares/liquid_glass_config.dart';
 import 'utils/liquid_glass_route_suppression.dart';
+import 'utils/liquid_glass_spring.dart';
 import 'utils/native_liquid_glass_utils.dart';
 
 /// A container widget that applies a native Liquid Glass effect to its child.
@@ -71,6 +72,17 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
   Size? _lastCustomPathSize;
   int? _lastBorderSignature;
   int? _lastBackgroundColor;
+
+  /// Mirrors the native press state so the Flutter child scales with the glass.
+  bool _pressed = false;
+
+  /// Must match the native press scale and spring in
+  /// `LiquidGlassContainerSwiftUI.swift` (`.scaleEffect(1.04)` driven by
+  /// `.bouncy(duration: 0.35)`), so child and glass stay aligned while pressed.
+  static const double _pressedScale = 1.04;
+  static final _pressSpring = LiquidGlassSpring.bouncy(
+    duration: const Duration(milliseconds: 350),
+  );
 
   @override
   void didUpdateWidget(covariant LiquidGlassContainer oldWidget) {
@@ -156,8 +168,21 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
 
   @override
   Widget build(BuildContext context) {
-    if (!NativeLiquidGlassUtils.supportsLiquidGlass) {
-      return const SizedBox();
+    if (!NativeLiquidGlassUtils.usesNativeViews) {
+      // No native glass: show the child as-is, same size and tap behavior.
+      Widget fallback = SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: widget.child,
+      );
+      if (widget.onTap != null) {
+        fallback = GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: widget.onTap,
+          child: fallback,
+        );
+      }
+      return fallback;
     }
 
     final nativeView = UiKitView(
@@ -173,7 +198,17 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
       child: Stack(
         children: [
           Positioned.fill(child: IgnorePointer(child: nativeView)),
-          widget.child,
+          // Scales with the native glass on press (same scale and spring),
+          // so the content never drifts off the glass. At rest it's the
+          // identity, and only the Flutter child is transformed, never the
+          // platform view.
+          SpringBuilder(
+            value: _pressed ? _pressedScale : 1.0,
+            spring: _pressSpring,
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
+            child: widget.child,
+          ),
         ],
       ),
     );
@@ -200,7 +235,8 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
   }
 
   void _setPressed(bool pressed) {
-    if (!widget.config.interactive) return;
+    if (!widget.config.interactive || pressed == _pressed) return;
+    setState(() => _pressed = pressed);
     _nativeChannel?.invokeMethod('setPressed', {'pressed': pressed});
   }
 }

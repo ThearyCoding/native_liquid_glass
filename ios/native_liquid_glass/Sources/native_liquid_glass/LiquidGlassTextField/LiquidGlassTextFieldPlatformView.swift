@@ -10,6 +10,7 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
     private var suppressObserver: GlassSuppressObserver?
     private var legacyTextField: UITextField?
     private var currentConfig: LiquidGlassTextFieldConfig?
+    private let focusCoordinator = TextFieldFocusCoordinator()
 
     public init(
         frame: CGRect, viewId: Int64, arguments args: [String: Any]?,
@@ -63,6 +64,22 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
                 self.setText(text)
                 result(nil)
 
+            case "focus":
+                if #available(iOS 16.0, *) {
+                    self.focusCoordinator.focusToken += 1
+                } else {
+                    self.legacyTextField?.becomeFirstResponder()
+                }
+                result(nil)
+
+            case "blur":
+                if #available(iOS 16.0, *) {
+                    self.focusCoordinator.blurToken += 1
+                } else {
+                    self.legacyTextField?.resignFirstResponder()
+                }
+                result(nil)
+
             case "setSuppressed":
                 let suppressed = (call.arguments as? [String: Any])?["suppressed"] as? Bool ?? false
                 let reason = (call.arguments as? [String: Any])?["reason"] as? String
@@ -79,19 +96,21 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
     @available(iOS 16.0, *)
     private func configureSwiftUI(args: [String: Any]?) {
         let config = LiquidGlassTextFieldConfig(arguments: args)
+        currentRevision = config.revision
         let view = LiquidGlassTextFieldView(
             config: config,
+            focusCoordinator: focusCoordinator,
             onChanged: { [weak self] text in
                 self?.methodChannel.invokeMethod("onChanged", arguments: text)
             },
             onSubmit: { [weak self] text in
-                self?.methodChannel.invokeMethod("onSubmit", arguments: text)
+                self?.methodChannel.invokeMethod("onSubmitted", arguments: text)
             },
             onEditingStart: { [weak self] in
-                self?.methodChannel.invokeMethod("onEditingStart", arguments: nil)
+                self?.methodChannel.invokeMethod("onFocusChange", arguments: true)
             },
             onEditingEnd: { [weak self] in
-                self?.methodChannel.invokeMethod("onEditingEnd", arguments: nil)
+                self?.methodChannel.invokeMethod("onFocusChange", arguments: false)
             },
             onPrefixIconTap: { [weak self] in
                 self?.methodChannel.invokeMethod("onPrefixIconTap", arguments: nil)
@@ -99,18 +118,12 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
             onSuffixIconTap: { [weak self] in
                 self?.methodChannel.invokeMethod("onSuffixIconTap", arguments: nil)
             },
-            onSizeChanged: { [weak self] size in
-                // Send size update to Flutter
-                self?.methodChannel.invokeMethod(
-                    "onSizeChanged",
-                    arguments: [
-                        "height": size.height,
-                        "width": size.width,
-                    ])
-            }
+            onSizeChanged: makeSizeReporter()
         )
 
         let hc = UIHostingController(rootView: view)
+
+        hc.configureForFlutterPlatformView()
         hc.view.backgroundColor = .clear
         hc.view.translatesAutoresizingMaskIntoConstraints = false
 
@@ -134,15 +147,7 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
         containerView.setNeedsLayout()
         containerView.layoutIfNeeded()
 
-        // Send initial size
-        DispatchQueue.main.async {
-            self.methodChannel.invokeMethod(
-                "onSizeChanged",
-                arguments: [
-                    "height": hc.view.frame.height,
-                    "width": hc.view.frame.width,
-                ])
-        }
+        // The view reports its size on its first layout (and every change).
 
         if config.autoFocus {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -153,19 +158,21 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
     @available(iOS 16.0, *)
     private func updateSwiftUIConfig(args: [String: Any]?) {
         let newConfig = LiquidGlassTextFieldConfig(arguments: args)
+        currentRevision = newConfig.revision
         let view = LiquidGlassTextFieldView(
             config: newConfig,
+            focusCoordinator: focusCoordinator,
             onChanged: { [weak self] text in
                 self?.methodChannel.invokeMethod("onChanged", arguments: text)
             },
             onSubmit: { [weak self] text in
-                self?.methodChannel.invokeMethod("onSubmit", arguments: text)
+                self?.methodChannel.invokeMethod("onSubmitted", arguments: text)
             },
             onEditingStart: { [weak self] in
-                self?.methodChannel.invokeMethod("onEditingStart", arguments: nil)
+                self?.methodChannel.invokeMethod("onFocusChange", arguments: true)
             },
             onEditingEnd: { [weak self] in
-                self?.methodChannel.invokeMethod("onEditingEnd", arguments: nil)
+                self?.methodChannel.invokeMethod("onFocusChange", arguments: false)
             },
             onPrefixIconTap: { [weak self] in
                 self?.methodChannel.invokeMethod("onPrefixIconTap", arguments: nil)
@@ -173,9 +180,7 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
             onSuffixIconTap: { [weak self] in
                 self?.methodChannel.invokeMethod("onSuffixIconTap", arguments: nil)
             },
-            onSizeChanged: { [weak self] size in
-                self?.invalidateIntrinsicContentSize()
-            }
+            onSizeChanged: makeSizeReporter()
         )
 
         if let hc = hostingController as? UIHostingController<LiquidGlassTextFieldView> {
@@ -188,19 +193,30 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
                 hc.view.setNeedsDisplay()
                 self.containerView.setNeedsLayout()
                 self.containerView.layoutIfNeeded()
-                self.invalidateIntrinsicContentSize()
             }
         }
     }
 
-    private func invalidateIntrinsicContentSize() {
-        DispatchQueue.main.async { [weak self] in
-            self?.containerView.invalidateIntrinsicContentSize()
-            self?.methodChannel.invokeMethod(
-                "onSizeChanged",
-                arguments: [
-                    "height": self?.containerView.intrinsicContentSize.height ?? 0
-                ])
+    /// Revision of the config currently applied to the view. Set before the
+    /// new config is laid out, so every measurement taken during that layout
+    /// is tagged with it.
+    private var currentRevision = 0
+
+    /// Sends the view's measured size to Flutter, tagged with the config
+    /// revision in force when it was measured.
+    private func makeSizeReporter() -> (CGSize) -> Void {
+        return { [weak self] size in
+            guard let self, size.height > 0 else { return }
+            let revision = self.currentRevision
+            DispatchQueue.main.async {
+                self.methodChannel.invokeMethod(
+                    "onSizeChanged",
+                    arguments: [
+                        "height": size.height,
+                        "width": size.width,
+                        "revision": revision,
+                    ])
+            }
         }
     }
 
@@ -257,6 +273,11 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
         textField.returnKeyType = returnKeyType(for: config.textInputAction)
         textField.textAlignment = textAlignment(for: config.textAlign)
         textField.font = config.textStyle?.resolvedFont()
+        textField.textColor = config.foregroundColor ?? config.textStyle?.color ?? .label
+        textField.tintColor = config.cursorColor ?? config.tint
+        textField.autocapitalizationType = autocapitalizationType(for: config.textCapitalization)
+        textField.autocorrectionType = config.autocorrect ? .yes : .no
+        textField.spellCheckingType = config.enableSuggestions ? .yes : .no
 
         let hasError = config.errorText != nil
         let isFocused = textField.isFirstResponder
@@ -283,11 +304,9 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
 
     private func setText(_ text: String) {
         if #available(iOS 16.0, *) {
-            if let hc = hostingController as? UIHostingController<LiquidGlassTextFieldView> {
-                var view = hc.rootView
-                view.text = text
-                hc.rootView = view
-            }
+            // Assigning the view's `@State text` on a copy is ignored by
+            // SwiftUI; go through the observed coordinator instead.
+            focusCoordinator.externalText = (text, focusCoordinator.externalText.token + 1)
         } else {
             legacyTextField?.text = text
         }
@@ -304,14 +323,15 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
         }
     }
 
-    private func returnKeyType(for action: Int) -> UIReturnKeyType {
+    private func returnKeyType(for action: String) -> UIReturnKeyType {
         switch action {
-        case 1: return .next
-        case 2: return .search
-        case 3: return .send
-        case 4: return .continue
-        case 5: return .join
-        case 6: return .route
+        case "go": return .go
+        case "search": return .search
+        case "send": return .send
+        case "next": return .next
+        case "continueAction": return .continue
+        case "join": return .join
+        case "route": return .route
         default: return .done
         }
     }
@@ -321,6 +341,15 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
         case 1: return .center
         case 2: return .right
         default: return .left
+        }
+    }
+
+    private func autocapitalizationType(for capitalization: String) -> UITextAutocapitalizationType {
+        switch capitalization {
+        case "words": return .words
+        case "sentences": return .sentences
+        case "characters": return .allCharacters
+        default: return .none
         }
     }
 
@@ -347,7 +376,7 @@ public class LiquidGlassTextFieldPlatformView: NSObject, FlutterPlatformView {
 
 extension LiquidGlassTextFieldPlatformView: UITextFieldDelegate {
     public func textFieldDidBeginEditing(_ textField: UITextField) {
-        methodChannel.invokeMethod("onEditingStart", arguments: nil)
+        methodChannel.invokeMethod("onFocusChange", arguments: true)
 
         if let config = currentConfig {
             textField.layer.borderColor =
@@ -356,7 +385,7 @@ extension LiquidGlassTextFieldPlatformView: UITextFieldDelegate {
     }
 
     public func textFieldDidEndEditing(_ textField: UITextField) {
-        methodChannel.invokeMethod("onEditingEnd", arguments: nil)
+        methodChannel.invokeMethod("onFocusChange", arguments: false)
 
         if let config = currentConfig {
             textField.layer.borderColor =
@@ -390,10 +419,23 @@ extension LiquidGlassTextFieldPlatformView: UITextFieldDelegate {
     }
 
     public func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        methodChannel.invokeMethod("onSubmit", arguments: textField.text)
+        methodChannel.invokeMethod("onSubmitted", arguments: textField.text)
         textField.resignFirstResponder()
         return true
     }
+}
+
+/// Bridges Flutter-initiated focus/blur requests into the SwiftUI text
+/// field's `@FocusState`, which cannot be mutated from outside the view.
+/// Each token bump is observed via `.onChange` and flips focus state.
+public final class TextFieldFocusCoordinator: ObservableObject {
+    @Published public var focusToken: Int = 0
+    @Published public var blurToken: Int = 0
+    /// Text set from Flutter (`controller.text = ...`). A view's `@State`
+    /// can't be changed from outside, so the view observes this instead.
+    @Published public var externalText: (value: String, token: Int) = ("", 0)
+
+    public init() {}
 }
 
 // MARK: - Intrinsic Size View

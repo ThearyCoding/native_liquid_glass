@@ -19,15 +19,26 @@ public struct LiquidGlassTextFieldConfig {
     public let errorText: String?
     public let helperText: String?
     public let counterText: String?
+    /// Flutter's revision of this config. Echoed with every size report so
+    /// Flutter can ignore sizes measured for an older config.
+    public let revision: Int
+    /// For `inputType == "otp"`: "field" (one text field) or "boxes" (one
+    /// glass box per digit).
+    public let otpStyle: String
     public let width: CGFloat?
     public let height: CGFloat?
     public let textAlign: Int
+    public let textCapitalization: String
+    public let autocorrect: Bool
+    public let enableSuggestions: Bool
+    public let cursorColor: UIColor?
+    public let foregroundColor: UIColor?
     public let tint: UIColor?
     public let backgroundColor: UIColor?
     public let borderColor: UIColor?
     public let borderRadius: CGFloat?
     public let iconSize: CGFloat
-    public let textInputAction: Int
+    public let textInputAction: String
     public let glassEffectId: String?
     public let maxLength: Int?
     public let autoFocus: Bool
@@ -115,15 +126,22 @@ public struct LiquidGlassTextFieldConfig {
         errorText = args?["errorText"] as? String
         helperText = args?["helperText"] as? String
         counterText = args?["counterText"] as? String
+        revision = (args?["revision"] as? NSNumber)?.intValue ?? 0
+        otpStyle = (args?["otpStyle"] as? String) ?? "field"
         width = (args?["width"] as? NSNumber).map { CGFloat(truncating: $0) }
         height = (args?["height"] as? NSNumber).map { CGFloat(truncating: $0) }
-        textAlign = (args?["textAlign"] as? Int) ?? 0
+        textAlign = (args?["textAlign"] as? NSNumber)?.intValue ?? 0
+        textCapitalization = (args?["textCapitalization"] as? String) ?? "none"
+        autocorrect = (args?["autocorrect"] as? Bool) ?? true
+        enableSuggestions = (args?["enableSuggestions"] as? Bool) ?? true
+        cursorColor = Self.decodeColor(from: args?["cursorColor"])
+        foregroundColor = Self.decodeColor(from: args?["foregroundColor"])
         tint = Self.decodeColor(from: args?["tint"])
         backgroundColor = Self.decodeColor(from: args?["backgroundColor"])
         borderColor = Self.decodeColor(from: args?["borderColor"])
         borderRadius = (args?["borderRadius"] as? NSNumber).map { CGFloat(truncating: $0) }
         iconSize = (args?["iconSize"] as? NSNumber).map { CGFloat(truncating: $0) } ?? 20
-        textInputAction = (args?["textInputAction"] as? Int) ?? 0
+        textInputAction = (args?["textInputAction"] as? String) ?? "done"
         glassEffectId = args?["glassEffectId"] as? String
         maxLength = (args?["maxLength"] as? NSNumber)?.intValue
         autoFocus = (args?["autoFocus"] as? Bool) ?? false

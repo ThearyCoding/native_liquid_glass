@@ -574,7 +574,7 @@ class _LiquidGlassTabBarState extends State<LiquidGlassTabBar>
         final actionButtonReady =
             widget.iosActionButton == null || _nativeActionButton != null;
 
-        if (NativeLiquidGlassUtils.supportsLiquidGlass &&
+        if (NativeLiquidGlassUtils.usesNativeViews &&
             _nativeTabs != null &&
             actionButtonReady) {
           return _buildNativeIosTabBar(

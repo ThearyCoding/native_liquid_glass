@@ -106,6 +106,8 @@ final class GlassSuppressObserver {
   private var isSuppressedByRoute = false
   private var isSuppressedGlobally = false
   private var routeSuppressionStyle: RouteSuppressionStyle = .hidden
+  /// The view's own `clipsToBounds`, restored when no overlay covers it.
+  private var clipsToBoundsWhenUncovered: Bool?
 
   var isInteractionSuppressed: Bool {
     isSuppressedByRoute || isSuppressedGlobally
@@ -184,5 +186,23 @@ final class GlassSuppressObserver {
       view.alpha = 1
     }
     view.isUserInteractionEnabled = forceShow ? true : !shouldSuppress
+    updateClipping(view, covered: isSuppressedByRoute || isSuppressedGlobally)
+  }
+
+  /// While a Flutter overlay (modal, dialog, popup) covers the app, a native
+  /// view that stays visible (forceShow, popup style `.disabled`, or
+  /// `hidesView: false`) must not draw outside its own bounds: Flutter can
+  /// only paint the overlay over the view's own rect, so anything outside it
+  /// (the glass shadow, overflow) would show on top of the overlay.
+  private func updateClipping(_ view: UIView, covered: Bool) {
+    if covered {
+      if clipsToBoundsWhenUncovered == nil {
+        clipsToBoundsWhenUncovered = view.clipsToBounds
+      }
+      view.clipsToBounds = true
+    } else if let original = clipsToBoundsWhenUncovered {
+      view.clipsToBounds = original
+      clipsToBoundsWhenUncovered = nil
+    }
   }
 }

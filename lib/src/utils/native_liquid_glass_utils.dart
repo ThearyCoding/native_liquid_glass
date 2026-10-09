@@ -31,10 +31,57 @@ final class NativeLiquidGlassUtils {
   /// Returns `true` on iOS 26+. The only platform where Liquid Glass is
   /// currently supported.
   static bool get supportsLiquidGlass {
+    if (debugSupportsLiquidGlassOverride != null) {
+      return debugSupportsLiquidGlassOverride!;
+    }
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return false;
     _ensureInitialized();
     return (_cachedIOSVersion ?? 0) >= 26;
   }
+
+  /// Overrides [supportsLiquidGlass] in tests. Set back to `null` in tearDown.
+  @visibleForTesting
+  static bool? debugSupportsLiquidGlassOverride;
+
+  /// Minimum iOS version for the native (UIKit / SwiftUI) components.
+  static const int minimumNativeIOSVersion = 16;
+
+  /// Returns `true` on iOS 16+, where the components render natively.
+  ///
+  /// On iOS 26+ they use Liquid Glass; on iOS 16–25 they use the plain
+  /// system style (standard UIKit / SwiftUI controls, no glass). Elsewhere
+  /// the Flutter fallbacks are used.
+  static bool get usesNativeViews {
+    if (debugUsesNativeViewsOverride != null) {
+      return debugUsesNativeViewsOverride!;
+    }
+    if (debugSupportsLiquidGlassOverride != null) {
+      return debugSupportsLiquidGlassOverride!;
+    }
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return false;
+    _ensureInitialized();
+    return (_cachedIOSVersion ?? 0) >= minimumNativeIOSVersion;
+  }
+
+  /// Overrides [usesNativeViews] in tests. Set back to `null` in tearDown.
+  @visibleForTesting
+  static bool? debugUsesNativeViewsOverride;
+
+  /// Returns `true` on iOS 15+, where native sheets with detents
+  /// (`UISheetPresentationController`) are available. They get the Liquid
+  /// Glass background on iOS 26+ and the system background below that.
+  static bool get supportsNativeSheet {
+    if (debugSupportsNativeSheetOverride != null) {
+      return debugSupportsNativeSheetOverride!;
+    }
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return false;
+    _ensureInitialized();
+    return (_cachedIOSVersion ?? 0) >= 15;
+  }
+
+  /// Overrides [supportsNativeSheet] in tests. Set back to `null` in tearDown.
+  @visibleForTesting
+  static bool? debugSupportsNativeSheetOverride;
 
   /// Forces a reset of the cached version. Only needed for testing.
   @visibleForTesting

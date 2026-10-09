@@ -378,6 +378,11 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
   int _iconSignature = 0;
   double? _nativeWidth;
   double? _nativeHeight;
+
+  /// Version of the native size. Native pushes `contentSizeChanged` and also
+  /// answers `getIntrinsicSize`; they can arrive out of order, so an older
+  /// version never overwrites a newer one.
+  int _nativeSizeVersion = -1;
   int? _lastConfigHash;
   bool? _lastEnabled;
   Size? _cachedEstimatedSize;
@@ -438,6 +443,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
       setState(() {
         _nativeWidth = null;
         _nativeHeight = null;
+        _nativeSizeVersion = -1;
         _lastConfigHash = null;
         _lastEnabled = null;
         _cachedEstimatedSize = null;
@@ -450,6 +456,10 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
   }
 
   Future<void> _handleNativeMethodCall(MethodCall call) async {
+    if (call.method == 'contentSizeChanged') {
+      _applyIntrinsicSizeResult(call.arguments as Map<Object?, Object?>?);
+      return;
+    }
     if (call.method == 'onPressed') {
       widget.onPressed?.call();
     }
@@ -570,6 +580,10 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
     final w = (size['width'] as num?)?.toDouble();
     final h = (size['height'] as num?)?.toDouble();
     if (w == null && h == null) return;
+    final version = (size['version'] as num?)?.toInt() ?? 0;
+    if (version < _nativeSizeVersion) return;
+    _nativeSizeVersion = version;
+    if (w == _nativeWidth && h == _nativeHeight) return;
     setState(() {
       if (w != null) _nativeWidth = w;
       if (h != null) _nativeHeight = h;
@@ -628,17 +642,9 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
     final ch = _nativeChannel;
     if (ch == null || !mounted) return;
     try {
-      final size = await ch.invokeMethod<Map<Object?, Object?>>(
-        'getIntrinsicSize',
+      _applyIntrinsicSizeResult(
+        await ch.invokeMethod<Map<Object?, Object?>>('getIntrinsicSize'),
       );
-      final w = (size?['width'] as num?)?.toDouble();
-      final h = (size?['height'] as num?)?.toDouble();
-      if (mounted && (w != null || h != null)) {
-        setState(() {
-          if (w != null) _nativeWidth = w;
-          if (h != null) _nativeHeight = h;
-        });
-      }
     } catch (_) {}
   }
 
@@ -747,8 +753,12 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
     return <String, Object?>{
       'title': widget.label,
       ...iconMap,
-      'width': isIconOnly ? iconOnlySide : resolvedSize!.width,
-      'height': isIconOnly ? iconOnlySide : resolvedSize!.height,
+      // Text buttons are laid out natively at their natural size unless the
+      // caller fixed a dimension; native reports that size back and Flutter
+      // sizes its box to match (see `contentSizeChanged`).
+      'width': isIconOnly ? iconOnlySide : widget.width,
+      'height': isIconOnly ? iconOnlySide : widget.height,
+      if (!isIconOnly) 'fitContent': true,
       'enabled': _isEnabled,
       'iconOnly': isIconOnly,
       'iconSize': widget.iconSize,
@@ -793,7 +803,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
         !_needsNativeIconPayload || _nativeIconPayloadResolved;
     final isIconOnly = widget._iconOnly;
 
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       if (isIconOnly) {
         final iconSide = _resolveIconOnlySize();
         Widget iconContent = !nativePayloadReady
@@ -869,7 +879,80 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
       return wrapWithGlassRouteSuppression(textContent);
     }
 
-    return const SizedBox();
+    return _buildFlutterFallback(context);
+  }
+
+  /// Plain Flutter button used where native Liquid Glass isn't available:
+  /// an [IconButton] for icon-only buttons, a [FilledButton] otherwise.
+  Widget _buildFlutterFallback(BuildContext context) {
+    final onPressed = _isEnabled ? widget.onPressed : null;
+    final icon = widget.icon?.fallbackIcon(
+      size: widget.iconSize,
+      color: widget.iconColor,
+    );
+
+    if (widget._iconOnly) {
+      final side = widget.size;
+      return IconButton(
+        onPressed: onPressed,
+        tooltip: widget.tooltip,
+        iconSize: widget.iconSize,
+        icon: icon ?? Icon(Icons.add, color: widget.iconColor),
+        style: IconButton.styleFrom(
+          backgroundColor: widget.tint,
+          fixedSize: side != null ? Size.square(side) : null,
+        ),
+      );
+    }
+
+    final label = Text(
+      widget.label ?? '',
+      style: widget.labelTextStyle,
+      maxLines: widget.maxLines,
+      overflow: widget.maxLines != null ? TextOverflow.ellipsis : null,
+    );
+    final gap = widget.imagePadding;
+    final Widget child = switch ((icon, widget.imagePlacement)) {
+      (null, _) => label,
+      (final i?, LiquidGlassImagePlacement.leading) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [i, SizedBox(width: gap), Flexible(child: label)],
+      ),
+      (final i?, LiquidGlassImagePlacement.trailing) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Flexible(child: label), SizedBox(width: gap), i],
+      ),
+      (final i?, LiquidGlassImagePlacement.top) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [i, SizedBox(height: gap), label],
+      ),
+      (final i?, LiquidGlassImagePlacement.bottom) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [label, SizedBox(height: gap), i],
+      ),
+    };
+
+    final radius = widget.borderRadius;
+    Widget button = FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: widget.tint,
+        foregroundColor: widget.labelColor ?? widget.foregroundColor,
+        padding: widget.padding,
+        shape: radius != null
+            ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius))
+            : const StadiumBorder(),
+      ),
+      child: child,
+    );
+    if (widget.width != null || widget.height != null) {
+      button = SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: button,
+      );
+    }
+    return button;
   }
 }
 

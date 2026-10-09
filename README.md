@@ -318,12 +318,22 @@ final actionId = await LiquidGlassAlert.show(
   ],
 );
 
-// Sheet
-LiquidGlassSheet.show(
+// Sheet: a Flutter widget inside a native sheet. Add this entry point to
+// your app's main.dart; it runs in its own engine embedded in the sheet.
+@pragma('vm:entry-point')
+void bottomSheetMain(List<String> args) {
+  runLiquidGlassSheet(args, builders: {
+    'options': (context, arguments) => OptionsSheet(arguments: arguments),
+  });
+}
+
+final picked = await LiquidGlassSheet.show<String>(
   context: context,
-  title: 'Options',
+  name: 'options',
+  arguments: {'selected': 'a'},
   detents: [LiquidGlassSheetDetent.medium],
-);
+).result;
+// Inside OptionsSheet: LiquidGlassSheetScope.of(context).dismiss('b');
 
 // Popover
 LiquidGlassPopover.show(

@@ -92,7 +92,7 @@ class _LiquidGlassColorPickerState extends State<LiquidGlassColorPicker> with Li
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       return SizedBox(
         width: widget.size,
         height: widget.size,

@@ -5,7 +5,9 @@ import 'package:native_liquid_glass_example/demo_app.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('renders catalog then opens LiquidGlass preview', (WidgetTester tester) async {
+  testWidgets('renders catalog then opens LiquidGlass preview', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const LiquidGlassDemoApp());
 
     expect(find.text('Native Liquid Glass Widgets'), findsOneWidget);

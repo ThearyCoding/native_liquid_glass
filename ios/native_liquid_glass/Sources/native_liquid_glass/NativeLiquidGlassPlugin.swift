@@ -3,6 +3,20 @@ import UIKit
 
 public class NativeLiquidGlassPlugin: NSObject, FlutterPlugin {
   private static var presenters: [ObjectIdentifier: LiquidGlassPresenter] = [:]
+
+  /// Registers plugins on every engine spawned to render a Flutter bottom
+  /// sheet. Set it from the AppDelegate so the sheet can use all app plugins:
+  ///
+  ///     NativeLiquidGlassPlugin.flutterSheetPluginRegistrant = { registry in
+  ///       GeneratedPluginRegistrant.register(with: registry)
+  ///     }
+  ///
+  /// When nil, only this plugin is registered on the sheet engine.
+  public static var flutterSheetPluginRegistrant: ((FlutterPluginRegistry) -> Void)?
+
+  static func removePresenter(for messenger: FlutterBinaryMessenger) {
+    presenters.removeValue(forKey: ObjectIdentifier(messenger as AnyObject))
+  }
   private static let tabBarViewType = "liquid-glass-tab-bar-view"
   private static let buttonViewType = "liquid-glass-button-view"
   private static let iconButtonViewType = "liquid-glass-icon-button-view"

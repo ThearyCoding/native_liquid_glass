@@ -474,7 +474,7 @@ class _LiquidGlassToolbarState extends State<LiquidGlassToolbar> with LiquidGlas
 
   @override
   Widget build(BuildContext context) {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       // `widget.height` maps 1:1 to the visible glass bar height — no
       // implicit outer margin. `widget.padding` is applied *inside*
       // each capsule on the iOS side (grows each glass pill), so it

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Configuration for LiquidGlassButtonSwiftUI with default values.
-@available(iOS 26.0, *)
+@available(iOS 16.0, *)
 struct LiquidGlassButtonGroupConfig {
   let borderRadius: CGFloat?
   let padding: EdgeInsets

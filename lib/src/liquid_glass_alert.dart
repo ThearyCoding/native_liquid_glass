@@ -58,7 +58,7 @@ class LiquidGlassAlert {
     List<LiquidGlassAlertAction> actions = const [],
     LiquidGlassAlertStyle style = LiquidGlassAlertStyle.alert,
   }) async {
-    if (NativeLiquidGlassUtils.supportsLiquidGlass) {
+    if (NativeLiquidGlassUtils.usesNativeViews) {
       final completer = Completer<String?>();
 
       // Listen for action selection

@@ -26,6 +26,24 @@ class _LiquidGlassTextFieldPreviewPageState
   // Password visibility
   bool _obscurePassword = true;
 
+  // controller / focusNode parity demo
+  late final TextEditingController _firstNameController =
+      TextEditingController();
+  late final FocusNode _firstNameFocusNode = FocusNode();
+  late final TextEditingController _lastNameController =
+      TextEditingController();
+  final FocusNode _lastNameFocusNode = FocusNode();
+  String _lastSubmitted = '';
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _firstNameFocusNode.dispose();
+    _lastNameController.dispose();
+    _lastNameFocusNode.dispose();
+    super.dispose();
+  }
+
   void _validateEmail(String email) {
     setState(() {
       _email = email;
@@ -170,8 +188,6 @@ class _LiquidGlassTextFieldPreviewPageState
               tint: Colors.blue,
               prefixIcon: NativeLiquidGlassIcon.sfSymbol('person.fill'),
             ),
-            // const SizedBox(height: 20),
-
             // Email Field
             LiquidGlassTextField(
               hint: 'you@example.com',
@@ -184,7 +200,6 @@ class _LiquidGlassTextFieldPreviewPageState
               style: LiquidGlassTextFieldStyle.glass,
               tint: Colors.blue,
             ),
-            // const SizedBox(height: 20),
 
             // Password Field
             LiquidGlassTextField(
@@ -203,8 +218,68 @@ class _LiquidGlassTextFieldPreviewPageState
                   _obscurePassword = !_obscurePassword;
                 });
               },
+              magnifierStyle: LiquidGlassMagnifierStyle.standard,
               style: LiquidGlassTextFieldStyle.glass,
               tint: Colors.blue,
+            ),
+            const SizedBox(height: 32),
+
+            // TextField-parity Section (controller / focusNode / onSubmitted)
+            _buildSectionHeader('Flutter TextField Parity'),
+            const SizedBox(height: 16),
+
+            LiquidGlassTextField(
+              controller: _firstNameController,
+              focusNode: _firstNameFocusNode,
+              hint: 'First name',
+              label: 'First Name (controller)',
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _lastNameFocusNode.requestFocus(),
+              tint: Colors.indigo,
+            ),
+            const SizedBox(height: 20),
+
+            LiquidGlassTextField(
+              controller: _lastNameController,
+              focusNode: _lastNameFocusNode,
+              hint: 'Last name',
+              label: 'Last Name (focusNode chained)',
+              textCapitalization: TextCapitalization.words,
+              textAlign: TextAlign.center,
+              cursorColor: Colors.indigo,
+              textInputAction: TextInputAction.done,
+              onEditingComplete: () =>
+                  setState(() => _lastSubmitted = _lastNameController.text),
+              onSubmitted: (value) =>
+                  setState(() => _lastSubmitted = value),
+              tint: Colors.indigo,
+            ),
+            if (_lastSubmitted.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Submitted: $_lastSubmitted'),
+            ],
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(
+                  child: LiquidGlassButton(
+                    label: 'Focus First Name',
+                    onPressed: () => _firstNameFocusNode.requestFocus(),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: LiquidGlassButton(
+                    label: 'Clear via controller',
+                    onPressed: () {
+                      _firstNameController.clear();
+                      _lastNameController.clear();
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 32),
 
