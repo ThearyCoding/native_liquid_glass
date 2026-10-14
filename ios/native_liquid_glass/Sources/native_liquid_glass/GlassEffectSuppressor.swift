@@ -108,6 +108,11 @@ final class GlassSuppressObserver {
   private var routeSuppressionStyle: RouteSuppressionStyle = .hidden
   /// The view's own `clipsToBounds`, restored when no overlay covers it.
   private var clipsToBoundsWhenUncovered: Bool?
+  private var cornerRadiusWhenUncovered: CGFloat?
+  /// Corner radius of the view's visible shape (e.g. a circular icon
+  /// button), used for the clip while covered. Without it the clip is the
+  /// view's rectangle, and the glass shadow inside it shows as a square.
+  var coveredCornerRadius: ((CGRect) -> CGFloat?)?
 
   var isInteractionSuppressed: Bool {
     isSuppressedByRoute || isSuppressedGlobally
@@ -198,11 +203,18 @@ final class GlassSuppressObserver {
     if covered {
       if clipsToBoundsWhenUncovered == nil {
         clipsToBoundsWhenUncovered = view.clipsToBounds
+        cornerRadiusWhenUncovered = view.layer.cornerRadius
       }
       view.clipsToBounds = true
+      if let radius = coveredCornerRadius?(view.bounds) {
+        view.layer.cornerCurve = .continuous
+        view.layer.cornerRadius = min(radius, min(view.bounds.width, view.bounds.height) / 2)
+      }
     } else if let original = clipsToBoundsWhenUncovered {
       view.clipsToBounds = original
+      view.layer.cornerRadius = cornerRadiusWhenUncovered ?? 0
       clipsToBoundsWhenUncovered = nil
+      cornerRadiusWhenUncovered = nil
     }
   }
 }

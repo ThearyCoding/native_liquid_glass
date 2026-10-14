@@ -94,7 +94,6 @@ class _LiquidGlassTabBarPreviewPageState
       appBar: AppBar(
         leading: LiquidGlassButton.icon(
           enabled: true,
-          useLiquidGlassWhenPopupSuppressed: true,
           onPressed: () => Navigator.pop(context),
           icon: NativeLiquidGlassIcon.sfSymbol('chevron.left'),
         ),

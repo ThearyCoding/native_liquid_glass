@@ -16,6 +16,13 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
   // UIKit legacy path (iOS < 16)
   private var legacyButton: UIButton?
   private var legacyConfig: LiquidGlassButtonConfig?
+
+  private var currentConfig: LiquidGlassButtonConfig? {
+    if #available(iOS 16.0, *), let vm = viewModel as? LiquidGlassButtonViewModel {
+      return vm.config
+    }
+    return legacyConfig
+  }
   private var suppressObserver: GlassSuppressObserver?
   private var isRouteSuppressed = false
   private var isPopupRouteSuppressed = false
@@ -48,6 +55,11 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
     // Buttons should remain visible beneath Flutter modals, but stop
     // accepting taps until the route becomes current again.
     suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
+    // Clip to the button's shape while covered: circle (icon-only),
+    // capsule, or the configured border radius.
+    suppressObserver?.coveredCornerRadius = { [weak self] bounds in
+      self?.currentConfig?.borderRadius ?? min(bounds.width, bounds.height) / 2
+    }
 
     if #available(iOS 16.0, *) {
       configureSwiftUI(args: args)
@@ -227,7 +239,7 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
     let button = UIButton(type: .system)
     button.translatesAutoresizingMaskIntoConstraints = false
     button.backgroundColor = .clear
-    button.isEnabled = config.enabled && !isRouteSuppressed
+    button.isEnabled = config.enabled
     button.addTarget(self, action: #selector(handleLegacyButtonTap), for: .touchUpInside)
 
     self.legacyButton = button
@@ -246,21 +258,13 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
     guard let config = legacyConfig, let button = legacyButton else { return }
 
     let baseTintColor = config.tint ?? button.tintColor ?? .systemBlue
-    let usesTemporaryProminentStyle =
-      isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
-    let resolvedBackgroundColor =
-      usesTemporaryProminentStyle
-      ? baseTintColor
-      : baseTintColor.withAlphaComponent(0.22)
-    let resolvedForegroundColor =
-      usesTemporaryProminentStyle
-      ? .white
-      : (config.foregroundColor ?? config.iconColor ?? .label)
+    let resolvedBackgroundColor = baseTintColor.withAlphaComponent(0.22)
+    let resolvedForegroundColor = config.foregroundColor ?? config.iconColor ?? .label
 
     button.backgroundColor = resolvedBackgroundColor
     button.tintColor = config.iconColor ?? resolvedForegroundColor
     button.setTitleColor(resolvedForegroundColor, for: .normal)
-    button.isEnabled = config.enabled && !isRouteSuppressed
+    button.isEnabled = config.enabled
 
     if config.iconOnly {
       button.setTitle(nil, for: .normal)

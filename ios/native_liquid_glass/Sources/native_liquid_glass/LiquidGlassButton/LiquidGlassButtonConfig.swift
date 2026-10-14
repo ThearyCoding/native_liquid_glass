@@ -34,7 +34,6 @@ struct LiquidGlassButtonConfig {
   let borderRadius: CGFloat?
   let contentInsets: NSDirectionalEdgeInsets?
   let interaction: Bool
-  let useLiquidGlassWhenPopupSuppressed: Bool
   let labelColor: UIColor?
   let maxLines: Int?
   let borderColor: UIColor?
@@ -148,7 +147,6 @@ struct LiquidGlassButtonConfig {
     borderRadius = other.borderRadius
     contentInsets = other.contentInsets
     interaction = other.interaction
-    useLiquidGlassWhenPopupSuppressed = other.useLiquidGlassWhenPopupSuppressed
     labelColor = other.labelColor
     maxLines = other.maxLines
     borderColor = other.borderColor
@@ -259,8 +257,6 @@ struct LiquidGlassButtonConfig {
     }
 
     interaction = (args?["interaction"] as? Bool) ?? true
-    useLiquidGlassWhenPopupSuppressed =
-      (args?["useLiquidGlassWhenPopupSuppressed"] as? Bool) ?? false
     labelColor = Self.decodeColor(from: args?["labelColor"])
 
     if let ml = (args?["maxLines"] as? NSNumber)?.intValue, ml > 0 {

@@ -44,6 +44,9 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
 
     super.init()
     suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
+    // While covered, clip to the buttons' capsule outline rather than the
+    // view's rectangle, so the glass shadow doesn't show as a square.
+    suppressObserver?.coveredCornerRadius = { bounds in min(bounds.width, bounds.height) / 2 }
 
     let isDark = (args?["isDark"] as? Bool) ?? false
 
@@ -281,7 +284,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
 
       let button = UIButton(type: .system)
       button.tag = index
-      button.isEnabled = buttonConfig.enabled && !isRouteSuppressed
+      button.isEnabled = buttonConfig.enabled
       button.addTarget(self, action: #selector(handleButtonTap(_:)), for: .touchUpInside)
 
       uikitButtons.append(button)
@@ -299,6 +302,7 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
 
   @objc
   private func handleButtonTap(_ sender: UIButton) {
+    guard suppressObserver?.isInteractionSuppressed != true else { return }
     methodChannel.invokeMethod("onButtonPressed", arguments: sender.tag)
   }
 
@@ -306,23 +310,15 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     for (index, button) in uikitButtons.enumerated() {
       guard index < legacyButtonConfigs.count else { continue }
       let config = legacyButtonConfigs[index]
-      let usesTemporaryProminentStyle =
-        isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
       let baseTintColor = config.tint ?? button.tintColor ?? .systemBlue
-      let resolvedForegroundColor =
-        usesTemporaryProminentStyle
-          ? UIColor.white
-          : (config.foregroundColor ?? config.iconColor ?? .label)
+      let resolvedForegroundColor = config.foregroundColor ?? config.iconColor ?? .label
 
-      button.isEnabled = config.enabled && !isRouteSuppressed
+      button.isEnabled = config.enabled
       button.tintColor = config.iconColor ?? resolvedForegroundColor
       button.setTitleColor(resolvedForegroundColor, for: .normal)
 
       if #available(iOS 15.0, *) {
-        var configuration: UIButton.Configuration =
-          usesTemporaryProminentStyle
-            ? .borderedProminent()
-            : .borderedProminent()
+        var configuration: UIButton.Configuration = .borderedProminent()
         configuration.cornerStyle = .capsule
         if config.iconOnly {
           configuration.title = nil
@@ -333,16 +329,10 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
         }
         configuration.image = config.resolvedImage()
         configuration.baseForegroundColor = resolvedForegroundColor
-        configuration.baseBackgroundColor =
-          usesTemporaryProminentStyle
-            ? baseTintColor
-            : baseTintColor.withAlphaComponent(0.22)
+        configuration.baseBackgroundColor = baseTintColor.withAlphaComponent(0.22)
         button.configuration = configuration
       } else {
-        button.backgroundColor =
-          usesTemporaryProminentStyle
-            ? baseTintColor
-            : baseTintColor.withAlphaComponent(0.22)
+        button.backgroundColor = baseTintColor.withAlphaComponent(0.22)
         button.setImage(config.resolvedImage(), for: .normal)
         button.setTitle(config.iconOnly ? nil : (config.title ?? "Button"), for: .normal)
       }

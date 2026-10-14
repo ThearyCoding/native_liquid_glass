@@ -13,15 +13,11 @@ struct LiquidGlassButtonGroupItemView: View {
   let isPopupRouteSuppressed: Bool
   var namespace: Namespace.ID
 
-  private var isEffectivelyEnabled: Bool {
-    config.enabled && !isRouteSuppressed
-  }
+  /// Only `enabled` changes the look; under a Flutter modal or page the
+  /// buttons keep their appearance and just ignore taps.
+  private var isEffectivelyEnabled: Bool { config.enabled }
 
-  private var effectiveButtonStyle: String {
-    isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
-      ? "borderedProminent"
-      : config.buttonStyle
-  }
+  private var effectiveButtonStyle: String { config.buttonStyle }
 
   var body: some View {
     Group {
@@ -48,7 +44,7 @@ struct LiquidGlassButtonGroupItemView: View {
         standardButtonView
       }
     }
-    .allowsHitTesting(config.interaction)
+    .allowsHitTesting(config.interaction && !isRouteSuppressed)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityLabel)
     .accessibilityAddTraits(.isButton)
@@ -279,7 +275,8 @@ struct LiquidGlassButtonGroupItemView: View {
   @available(iOS 26.0, *)
   private func resolvedGlass() -> Glass {
     var glass = Glass.regular
-    if config.interactive {
+    // No press response while a Flutter modal or page covers the group.
+    if config.interactive && !isRouteSuppressed {
       glass = glass.interactive()
     }
     if let tint = config.tint {
@@ -306,7 +303,7 @@ struct LiquidGlassButtonGroupItemView: View {
   }
 
   private func handlePress() {
-    guard isEffectivelyEnabled else { return }
+    guard isEffectivelyEnabled, !isRouteSuppressed else { return }
     onPressed()
   }
 }

@@ -14,7 +14,6 @@ final String? glassEffectId;
     return LiquidGlassButton.icon(
       glassEffectUnionId: glassEffectUnionId,
       glassEffectId: glassEffectId,
-      useLiquidGlassWhenPopupSuppressed: true,
       tooltip: isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme',
       icon: NativeLiquidGlassIcon.sfSymbol(isDarkTheme ? 'sun.max' : 'moon'),
       onPressed: () => onThemeChanged(!isDarkTheme),
