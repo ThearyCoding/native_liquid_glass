@@ -71,23 +71,12 @@ struct LiquidGlassButtonRootView: View {
 
   private var config: LiquidGlassButtonConfig { viewModel.config }
   
-  private var isEffectivelyEnabled: Bool {
-    // If forceShow is true, ignore suppression for enabled state
-    if viewModel.forceShow {
-      return config.enabled
-    }
-    return config.enabled && !viewModel.isRouteSuppressed
-  }
-  
-  private var effectiveButtonStyle: String {
-    // If forceShow is true, keep the original style
-    if viewModel.forceShow {
-      return config.buttonStyle
-    }
-    return viewModel.isPopupRouteSuppressed && !config.useLiquidGlassWhenPopupSuppressed
-      ? "borderedProminent"
-      : config.buttonStyle
-  }
+  /// Only `enabled` changes the look. While a Flutter modal or page covers
+  /// the button it keeps its normal appearance and just ignores taps (the
+  /// host view stops taking touches, and `handlePress` checks it too).
+  private var isEffectivelyEnabled: Bool { config.enabled }
+
+  private var effectiveButtonStyle: String { config.buttonStyle }
 
   var body: some View {
     ZStack(alignment: .topTrailing) {
@@ -127,6 +116,9 @@ struct LiquidGlassButtonRootView: View {
       GlassEffectContainer(spacing: 40) {
         Button(action: handlePress) {
           buttonLabel
+            // Dimmed like the standard styles while disabled, keeping the
+            // glass itself.
+            .opacity(isEffectivelyEnabled ? 1 : 0.4)
             .padding(resolvedPadding())
             .frame(width: resolvedFrameWidth(), height: resolvedFrameHeight())
             .contentShape(resolvedShape())
@@ -141,7 +133,7 @@ struct LiquidGlassButtonRootView: View {
         .clipShape(resolvedShape())
         .disabled(!isEffectivelyEnabled)
         .buttonStyle(LiquidGlassNoHighlightButtonStyle())
-        .allowsHitTesting(config.interaction)
+        .allowsHitTesting(config.interaction && !viewModel.shouldSuppress)
       }
     } else {
       standardButtonView
@@ -201,7 +193,7 @@ private var standardButtonView: some View {
     }
     .buttonStyle(FixedSizeButtonStyle())
     .disabled(isDisabled)
-    .allowsHitTesting(config.interaction)
+    .allowsHitTesting(config.interaction && !viewModel.shouldSuppress)
 }
   private func backgroundColorForCurrentStyle(tint: Color?, isDisabled: Bool) -> Color {
     let baseColor: Color
@@ -450,7 +442,8 @@ private func resolvedPaddingForCurrentStyle(_ style: String) -> EdgeInsets {
       effectiveButtonStyle == "prominentGlass" || effectiveButtonStyle == "automatic"
 
     var glass = Glass.regular
-    if config.interactive {
+    // No press response while a Flutter modal or page covers the button.
+    if config.interactive && !viewModel.shouldSuppress {
       glass = glass.interactive()
     }
     if let tint = config.tint {

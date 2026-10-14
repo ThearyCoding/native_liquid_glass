@@ -10,12 +10,14 @@ let package = Package(
         .library(name: "native-liquid-glass", targets: ["native_liquid_glass"])
     ],
     dependencies: [
+        .package(name: "FlutterFramework", path: "../FlutterFramework"),
         .package(url: "https://github.com/SVGKit/SVGKit", from: "3.0.0"),
     ],
     targets: [
         .target(
             name: "native_liquid_glass",
             dependencies: [
+                .product(name: "FlutterFramework", package: "FlutterFramework"),
                 .product(name: "SVGKit", package: "SVGKit"),
             ],
             path: "Sources/native_liquid_glass",

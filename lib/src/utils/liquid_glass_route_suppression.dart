@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../liquid_glass_lifecycle.dart';
+import 'native_liquid_glass_utils.dart';
+
+/// Approximates the drop shadow of native Liquid Glass (iOS 26). Drawn by
+/// Flutter while a modal covers the native view, so the modal barrier dims it
+/// like the rest of the page.
+const List<BoxShadow> kLiquidGlassCoveredShadow = [
+  BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 6)),
+];
 
 /// Mixin that handles both:
 /// 1. Hides the native liquid glass during page navigation (when pushing/popping routes)
@@ -21,6 +29,26 @@ mixin LiquidGlassRouteSuppression<T extends StatefulWidget> on State<T> {
   bool _shouldBeInteractive = true;
   bool _isMounted = false;
   bool _lastModalState = false;
+
+  /// While a Flutter modal covers the native view, the view is clipped to
+  /// its shape (the glass shadow would otherwise paint over the modal
+  /// barrier), so Flutter draws the shadow behind it instead, in [shape].
+  /// No shadow at other times, or when [shape] is null (a style without
+  /// glass).
+  @protected
+  Widget withGlassShadowWhileCovered(Widget child, ShapeBorder? shape) {
+    final covered = !forceShow && _shouldRender && !_shouldBeInteractive;
+    final showShadow =
+        shape != null && covered && NativeLiquidGlassUtils.supportsLiquidGlass;
+    // Always the same wrapper, only the decoration changes: inserting or
+    // removing a widget above the platform view recreates the native view.
+    return DecoratedBox(
+      decoration: showShadow
+          ? ShapeDecoration(shape: shape, shadows: kLiquidGlassCoveredShadow)
+          : const BoxDecoration(),
+      child: child,
+    );
+  }
 
   @protected
   Widget wrapWithGlassRouteSuppression(Widget child) {
@@ -169,9 +197,18 @@ mixin LiquidGlassRouteSuppression<T extends StatefulWidget> on State<T> {
     super.dispose();
   }
 
+  /// Call when the native view is (re)created. A new native view starts out
+  /// unsuppressed, and [_checkVisibility] only sends changes, so the current
+  /// suppression is sent again here; otherwise a view recreated under a modal
+  /// would stay interactive.
   void syncGlassRouteVisibility() {
-    if (_isMounted) {
-      _checkVisibility();
+    if (!_isMounted) return;
+    _checkVisibility();
+    if (forceShow) return;
+    if (!_shouldRender) {
+      _sendSuppressionToNative(true, 'navigation');
+    } else if (!_shouldBeInteractive) {
+      _sendSuppressionToNative(true, 'popup');
     }
   }
 }

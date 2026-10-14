@@ -226,16 +226,6 @@ class LiquidGlassButton extends StatefulWidget {
   /// Defaults to true.
   final bool interaction;
 
-  /// Whether a Flutter popup/modal should keep this button's Liquid Glass
-  /// appearance instead of temporarily switching to a standard
-  /// `borderedProminent` button style.
-  ///
-  /// When false (the default), popup suppression keeps the button visible but
-  /// disabled and temporarily renders it as a standard prominent button. When
-  /// true, popup suppression keeps the Liquid Glass style while still
-  /// disabling interaction.
-  final bool useLiquidGlassWhenPopupSuppressed;
-
   /// Explicit label text color.
   ///
   /// When provided, overrides any color derived from [foregroundColor] or the
@@ -300,7 +290,6 @@ class LiquidGlassButton extends StatefulWidget {
     this.borderRadius,
     this.padding,
     this.interaction = true,
-    this.useLiquidGlassWhenPopupSuppressed = false,
     this.labelColor,
     this.shrinkWrap = false,
     this.maxLines = 1,
@@ -339,7 +328,6 @@ class LiquidGlassButton extends StatefulWidget {
     this.borderRadius,
     this.padding,
     this.interaction = true,
-    this.useLiquidGlassWhenPopupSuppressed = false,
     this.badgeValue,
     this.showBadge = false,
     this.badgeColor,
@@ -517,7 +505,6 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
       widget.borderRadius,
       widget.padding,
       widget.interaction,
-      widget.useLiquidGlassWhenPopupSuppressed,
       widget.labelColor?.toARGB32(),
       widget.maxLines,
       widget.border?.signature,
@@ -779,8 +766,6 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
         'paddingRight': p.right,
       },
       'interaction': widget.interaction,
-      'useLiquidGlassWhenPopupSuppressed':
-          widget.useLiquidGlassWhenPopupSuppressed,
       if (widget.labelColor != null)
         'labelColor': widget.labelColor!.toARGB32(),
       if (!isIconOnly) 'imagePlacement': widget.imagePlacement.name,
@@ -795,6 +780,22 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
       if (!isIconOnly && widget.maxLines != null) 'maxLines': widget.maxLines,
       if (widget.border != null) ...widget.border!.toMap(),
     };
+  }
+
+  /// The native glass outline (for the covered shadow), or null for the
+  /// styles without glass.
+  ShapeBorder? get _glassShape {
+    const glassStyles = {
+      LiquidGlassButtonStyle.glass,
+      LiquidGlassButtonStyle.prominentGlass,
+      LiquidGlassButtonStyle.automatic,
+    };
+    if (!glassStyles.contains(widget.style)) return null;
+    final radius = widget.borderRadius;
+    if (radius != null) {
+      return RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius));
+    }
+    return widget._iconOnly ? const CircleBorder() : const StadiumBorder();
   }
 
   @override
@@ -819,6 +820,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
                   gestureRecognizers: _buttonGestureRecognizers,
                 ),
               );
+        iconContent = withGlassShadowWhileCovered(iconContent, _glassShape);
         // When the caller asked for wrap-content (`size: null`), release
         // the horizontal tight constraint from the parent so the button
         // actually shrinks to `iconSide`. Without this, a stretched
@@ -868,6 +870,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
           gestureRecognizers: _buttonGestureRecognizers,
         ),
       );
+      textContent = withGlassShadowWhileCovered(textContent, _glassShape);
       // Same wrap-content treatment as the icon-only path.
       if (widget.width == null) {
         textContent = UnconstrainedBox(
@@ -986,10 +989,6 @@ class LiquidGlassIconButton extends StatelessWidget {
   /// Whether native iOS glass effect should be interactive.
   final bool interactive;
 
-  /// Whether a Flutter popup/modal should keep the Liquid Glass style instead
-  /// of temporarily switching this button to a standard prominent button.
-  final bool useLiquidGlassWhenPopupSuppressed;
-
   /// Optional ID for glass effect union.
   final String? glassEffectUnionId;
 
@@ -1007,7 +1006,6 @@ class LiquidGlassIconButton extends StatelessWidget {
     this.iconColor,
     this.tint,
     this.interactive = true,
-    this.useLiquidGlassWhenPopupSuppressed = false,
     this.glassEffectUnionId,
     this.glassEffectId,
   }) : assert(size > 0, 'size must be > 0.'),
@@ -1025,8 +1023,6 @@ class LiquidGlassIconButton extends StatelessWidget {
       iconColor: iconColor,
       tint: tint,
       interactive: interactive,
-      useLiquidGlassWhenPopupSuppressed:
-          useLiquidGlassWhenPopupSuppressed,
       glassEffectUnionId: glassEffectUnionId,
       glassEffectId: glassEffectId,
     );
