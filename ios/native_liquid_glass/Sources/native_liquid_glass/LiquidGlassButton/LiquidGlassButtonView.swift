@@ -57,8 +57,17 @@ final class LiquidGlassButtonPlatformView: NSObject, FlutterPlatformView {
     suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
     // Clip to the button's shape while covered: circle (icon-only),
     // capsule, or the configured border radius.
-    suppressObserver?.coveredCornerRadius = { [weak self] bounds in
-      self?.currentConfig?.borderRadius ?? min(bounds.width, bounds.height) / 2
+    suppressObserver?.coveredClipPath = { [weak self] bounds in
+      guard let self else { return nil }
+      // The glass is laid out at its natural size, centered: a parent can
+      // stretch the view (e.g. 44x56 in an AppBar leading slot).
+      var size = self.contentSize
+      if self.currentConfig?.iconOnly == true {
+        let s = size ?? bounds.size
+        size = CGSize(width: min(s.width, s.height), height: min(s.width, s.height))
+      }
+      return GlassSuppressObserver.centeredGlassPath(
+        size: size, cornerRadius: self.currentConfig?.borderRadius, in: bounds)
     }
 
     if #available(iOS 16.0, *) {

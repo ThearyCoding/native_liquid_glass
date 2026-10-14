@@ -108,11 +108,10 @@ final class GlassSuppressObserver {
   private var routeSuppressionStyle: RouteSuppressionStyle = .hidden
   /// The view's own `clipsToBounds`, restored when no overlay covers it.
   private var clipsToBoundsWhenUncovered: Bool?
-  private var cornerRadiusWhenUncovered: CGFloat?
-  /// Corner radius of the view's visible shape (e.g. a circular icon
-  /// button), used for the clip while covered. Without it the clip is the
-  /// view's rectangle, and the glass shadow inside it shows as a square.
-  var coveredCornerRadius: ((CGRect) -> CGFloat?)?
+  /// Outline of the view's visible glass (e.g. a circular icon button), in
+  /// the view's coordinates, used as the clip while covered. Without it the
+  /// clip is the view's rectangle, and the glass shadow inside it shows.
+  var coveredClipPath: ((CGRect) -> UIBezierPath?)?
 
   var isInteractionSuppressed: Bool {
     isSuppressedByRoute || isSuppressedGlobally
@@ -203,18 +202,35 @@ final class GlassSuppressObserver {
     if covered {
       if clipsToBoundsWhenUncovered == nil {
         clipsToBoundsWhenUncovered = view.clipsToBounds
-        cornerRadiusWhenUncovered = view.layer.cornerRadius
       }
       view.clipsToBounds = true
-      if let radius = coveredCornerRadius?(view.bounds) {
-        view.layer.cornerCurve = .continuous
-        view.layer.cornerRadius = min(radius, min(view.bounds.width, view.bounds.height) / 2)
+      if let path = coveredClipPath?(view.bounds) {
+        let mask = CAShapeLayer()
+        mask.frame = view.bounds
+        mask.path = path.cgPath
+        view.layer.mask = mask
       }
     } else if let original = clipsToBoundsWhenUncovered {
       view.clipsToBounds = original
-      view.layer.cornerRadius = cornerRadiusWhenUncovered ?? 0
+      view.layer.mask = nil
       clipsToBoundsWhenUncovered = nil
-      cornerRadiusWhenUncovered = nil
     }
+  }
+
+}
+
+extension GlassSuppressObserver {
+  /// The capsule (or rounded rect with [cornerRadius]) of [size], centered in
+  /// [bounds] the way the native content is laid out. A square size gives a
+  /// circle.
+  static func centeredGlassPath(
+    size: CGSize?, cornerRadius: CGFloat? = nil, in bounds: CGRect
+  ) -> UIBezierPath {
+    let size = size ?? bounds.size
+    let w = min(size.width, bounds.width)
+    let h = min(size.height, bounds.height)
+    let rect = CGRect(x: bounds.midX - w / 2, y: bounds.midY - h / 2, width: w, height: h)
+    let radius = min(cornerRadius ?? .greatestFiniteMagnitude, min(w, h) / 2)
+    return UIBezierPath(roundedRect: rect, cornerRadius: radius)
   }
 }

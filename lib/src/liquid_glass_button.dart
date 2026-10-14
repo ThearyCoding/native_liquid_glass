@@ -782,6 +782,18 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
     };
   }
 
+  /// The glass's natural size as measured natively (square for icon-only), so
+  /// the covered shadow matches it when a parent stretches the view.
+  Size? get _glassContentSize {
+    final w = _nativeWidth, h = _nativeHeight;
+    if (w == null || h == null) return null;
+    if (widget._iconOnly) {
+      final side = math.min(w, h);
+      return Size(side, side);
+    }
+    return Size(w, h);
+  }
+
   /// The native glass outline (for the covered shadow), or null for the
   /// styles without glass.
   ShapeBorder? get _glassShape {
@@ -820,7 +832,11 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
                   gestureRecognizers: _buttonGestureRecognizers,
                 ),
               );
-        iconContent = withGlassShadowWhileCovered(iconContent, _glassShape);
+        iconContent = withGlassShadowWhileCovered(
+          iconContent,
+          _glassShape,
+          contentSize: _glassContentSize,
+        );
         // When the caller asked for wrap-content (`size: null`), release
         // the horizontal tight constraint from the parent so the button
         // actually shrinks to `iconSide`. Without this, a stretched
@@ -870,7 +886,11 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton>
           gestureRecognizers: _buttonGestureRecognizers,
         ),
       );
-      textContent = withGlassShadowWhileCovered(textContent, _glassShape);
+      textContent = withGlassShadowWhileCovered(
+        textContent,
+        _glassShape,
+        contentSize: _glassContentSize,
+      );
       // Same wrap-content treatment as the icon-only path.
       if (widget.width == null) {
         textContent = UnconstrainedBox(

@@ -35,19 +35,27 @@ mixin LiquidGlassRouteSuppression<T extends StatefulWidget> on State<T> {
   /// barrier), so Flutter draws the shadow behind it instead, in [shape].
   /// No shadow at other times, or when [shape] is null (a style without
   /// glass).
+  ///
+  /// [contentSize] is the size of the native glass when the view is bigger
+  /// than it (e.g. stretched by a parent); the shape is centered at that
+  /// size, the way native lays the glass out.
   @protected
-  Widget withGlassShadowWhileCovered(Widget child, ShapeBorder? shape) {
+  Widget withGlassShadowWhileCovered(
+    Widget child,
+    ShapeBorder? shape, {
+    Size? contentSize,
+  }) {
     final covered = !forceShow && _shouldRender && !_shouldBeInteractive;
-    final showShadow =
-        shape != null && covered && NativeLiquidGlassUtils.supportsLiquidGlass;
+    Decoration decoration = const BoxDecoration();
+    if (shape != null && covered && NativeLiquidGlassUtils.supportsLiquidGlass) {
+      decoration = ShapeDecoration(
+        shape: contentSize == null ? shape : _CenteredShapeBorder(shape, contentSize),
+        shadows: kLiquidGlassCoveredShadow,
+      );
+    }
     // Always the same wrapper, only the decoration changes: inserting or
     // removing a widget above the platform view recreates the native view.
-    return DecoratedBox(
-      decoration: showShadow
-          ? ShapeDecoration(shape: shape, shadows: kLiquidGlassCoveredShadow)
-          : const BoxDecoration(),
-      child: child,
-    );
+    return DecoratedBox(decoration: decoration, child: child);
   }
 
   @protected
@@ -211,4 +219,42 @@ mixin LiquidGlassRouteSuppression<T extends StatefulWidget> on State<T> {
       _sendSuppressionToNative(true, 'popup');
     }
   }
+}
+
+/// [shape] at [size], centered in the painted rect.
+class _CenteredShapeBorder extends ShapeBorder {
+  const _CenteredShapeBorder(this.shape, this.size);
+
+  final ShapeBorder shape;
+  final Size size;
+
+  Rect _inner(Rect rect) => Rect.fromCenter(
+    center: rect.center,
+    width: size.width.clamp(0, rect.width),
+    height: size.height.clamp(0, rect.height),
+  );
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      shape.getInnerPath(_inner(rect), textDirection: textDirection);
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      shape.getOuterPath(_inner(rect), textDirection: textDirection);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
+
+  @override
+  ShapeBorder scale(double t) => _CenteredShapeBorder(shape.scale(t), size * t);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _CenteredShapeBorder && other.shape == shape && other.size == size;
+
+  @override
+  int get hashCode => Object.hash(shape, size);
 }

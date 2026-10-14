@@ -46,7 +46,9 @@ final class LiquidGlassButtonGroupPlatformView: NSObject, FlutterPlatformView {
     suppressObserver = GlassSuppressObserver(view: containerView, hidesView: false)
     // While covered, clip to the buttons' capsule outline rather than the
     // view's rectangle, so the glass shadow doesn't show as a square.
-    suppressObserver?.coveredCornerRadius = { bounds in min(bounds.width, bounds.height) / 2 }
+    suppressObserver?.coveredClipPath = { [weak self] bounds in
+      GlassSuppressObserver.centeredGlassPath(size: self?.contentSize, in: bounds)
+    }
 
     let isDark = (args?["isDark"] as? Bool) ?? false
 
